@@ -53,11 +53,8 @@
   }
   .dinos {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
-  }
-  @media (max-width: 540px) {
-    .dinos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
   .dino-card {
     display: flex;
@@ -81,13 +78,13 @@
   }
   .dino-card canvas {
     width: 100%;
-    max-width: 58px;
+    max-width: 84px;
     height: auto;
     image-rendering: pixelated;
   }
   .dino-card span {
     font-family: var(--pixel);
-    font-size: 8px;
+    font-size: clamp(6px, 1.8vw, 8px);
     letter-spacing: 0.02em;
   }
 
@@ -166,7 +163,7 @@
 
 <main>
   <h1>Course du Dino</h1>
-  <p class="lede">Choisis ton dino, puis cours dans le désert. Saute par-dessus les cactus, baisse-toi sous les ptérodactyles. La vitesse monte sans arrêt, et la nuit tombe tous les 700 points.</p>
+  <p class="lede">Choisis ton dino : T-rex, bronto, stégo, tricé, ankylo ou un rex déguisé. Puis cours dans le désert. Saute par-dessus les cactus, baisse-toi sous les ptérodactyles. La vitesse monte sans arrêt, et la nuit tombe tous les 700 points.</p>
 
   <section class="picker" aria-labelledby="pick-title">
     <h2 id="pick-title">Choisis ton dino</h2>
@@ -214,45 +211,186 @@
   };
 
   // ---------- Sprites ----------
-  // # corps, o ventre, k oeil
-  const TREX_TOP = [
-    "          ######## ",
-    "         ##k#######",
-    "         ##########",
-    "         ##########",
-    "         #####     ",
-    "         ########  ",
-    "#       #####      ",
-    "#      #####o##    ",
-    "##   #####ooo##    ",
-    "###  #####ooo #    ",
-    "#########ooo       ",
-    " ########oo#       ",
-    "  ########o#       ",
-    "   ########        ",
-    "    ######         ",
-  ];
-  const TREX_DEAD_TOP = TREX_TOP.slice();
-  TREX_DEAD_TOP[1] = "         #k#k######";
-  TREX_DEAD_TOP[2] = "         ##k#######";
-  TREX_DEAD_TOP[3] = "         #k#k######";
-  const LEGS_STAND = ["     ##  ##", "     #    #", "     ##   ##"];
-  const LEGS_RUN1  = ["     ###  #", "          #", "          ##"];
-  const LEGS_RUN2  = ["     ##  ###", "     #", "     ##"];
+  // Lettres : # corps, o ventre, k oeil, p plaques/piques, f collerette, h cornes
+  const SPECIES = {
+    rex: {
+      top: [
+        "          ######## ",
+        "         ##k#######",
+        "         ##########",
+        "         ##########",
+        "         #####     ",
+        "         ########  ",
+        "#       #####      ",
+        "#      #####o##    ",
+        "##   #####ooo##    ",
+        "###  #####ooo #    ",
+        "#########ooo       ",
+        " ########oo#       ",
+        "  ########o#       ",
+        "   ########        ",
+        "    ######         ",
+      ],
+      legs: [
+        ["     ##  ##", "     #    #", "     ##   ##"],
+        ["     ###  #", "          #", "          ##"],
+        ["     ##  ###", "     #", "     ##"],
+      ],
+      duckTop: [
+        "                    ######## ",
+        "#       ##########  #k#######",
+        "##   ########################",
+        "#########################    ",
+        " ##########oooooooo###       ",
+        "  ##########oooo## ##        ",
+        "   ############    #         ",
+      ],
+      duckLegs: [["    ###  ##", "    #     ##"], ["    ##   ###", "    ##"]],
+      head: 10, headDuck: 20,
+    },
+    bronto: {
+      top: [
+        "                         #### ",
+        "                        ##k###",
+        "                        ######",
+        "                        ###   ",
+        "                       ###    ",
+        "                       ###    ",
+        "                      ###     ",
+        "                      ###     ",
+        "                     ###      ",
+        "              ##########      ",
+        "            ############      ",
+        "#         ##############      ",
+        "##      ################      ",
+        " ###  ##################      ",
+        "  ######################      ",
+        "     ####oooooooooo####       ",
+        "       ##############         ",
+      ],
+      legs: [
+        ["        ###      ###", "        ###      ###", "        ###      ###"],
+        ["        ###      ###", "         ###    ###", "          ##    ##"],
+        ["        ###      ###", "       ###        ###", "      ##            ##"],
+      ],
+      duckTop: [
+        "          ###########                ",
+        "#       ###############       ####   ",
+        "##    ##################     ##k###  ",
+        " ##################################  ",
+        "   #######oooooooooo#####            ",
+        "      ###############                ",
+      ],
+      duckLegs: [["        ###      ###", "        ##        ##"], ["        ###      ###", "         ##      ##"]],
+    },
+    stego: {
+      top: [
+        "              p                ",
+        "         p   ppp   p           ",
+        "        ppp ppppp ppp          ",
+        "       ppppppppppppppppp       ",
+        "      ##################       ",
+        "     ####################      ",
+        " p  ######################     ",
+        "#  ########################  ##",
+        "## ##########################k#",
+        " ######oooooooooo#########  ## ",
+        "   ####oooooooooooo####        ",
+        "     ################          ",
+      ],
+      legs: [
+        ["       ###        ###", "       ###        ###", "      ####       ####"],
+        ["       ###        ###", "        ###      ###", "        ###     ###"],
+        ["       ###        ###", "      ###          ###", "     ###            ###"],
+      ],
+      duckTop: [
+        "        p  pp  pp  p          ",
+        "       ppppppppppppppp        ",
+        "     ###################      ",
+        "## #########################k#",
+        "  ####oooooooooooo#####  ##   ",
+        "    #################         ",
+      ],
+      duckLegs: [["      ###       ###", "     ###         ###"], ["      ###       ###", "       ##       ##"]],
+    },
+    trice: {
+      top: [
+        "                    ff          ",
+        "                   ffff         ",
+        "                  fffff     h   ",
+        "        ######   ffffff    hh   ",
+        "     ############ffff#######h   ",
+        "   ###############ff##k#####    ",
+        "  ###########################h  ",
+        "# ##########################    ",
+        " ####oooooooooooooo#########    ",
+        "    ######oooooo#######         ",
+        "     ##############             ",
+      ],
+      legs: [
+        ["      ###        ###", "      ###        ###", "     ####       ####"],
+        ["      ###        ###", "       ###      ###", "       ###     ###"],
+        ["      ###        ###", "     ###          ###", "    ###            ###"],
+      ],
+      duckTop: [
+        "                  ffff         ",
+        "       ########  ffffff        ",
+        "   ##############ff##k#####hh  ",
+        "# #######################h###  ",
+        " ###oooooooooo###########      ",
+        "    ###############            ",
+      ],
+      duckLegs: [["      ###       ###", "     ###         ###"], ["      ###       ###", "       ##       ##"]],
+    },
+    ankylo: {
+      top: [
+        "          p  p  p  p           ",
+        "        ##############         ",
+        "      ##################       ",
+        "##   ####################  ### ",
+        "##########################k### ",
+        "##   #####oooooooooo######     ",
+        "       ##################      ",
+      ],
+      legs: [
+        ["        ##       ##", "       ###      ###"],
+        ["        ##       ##", "         ##    ##"],
+        ["        ##       ##", "      ##          ##"],
+      ],
+      duckTop: null,
+      duckLegs: [["       ###      ###"], ["        ##       ##"]],
+    },
+  };
+  SPECIES.ankylo.duckTop = SPECIES.ankylo.top;
 
-  const DUCK_TOP = [
-    "                    ######## ",
-    "#       ##########  #k#######",
-    "##   ########################",
-    "#########################    ",
-    " ##########oooooooo###       ",
-    "  ##########oooo## ##        ",
-    "   ############    #         ",
-  ];
-  const DUCK_LEGS1 = ["    ###  ##", "    #     ##"];
-  const DUCK_LEGS2 = ["    ##   ###", "    ##"];
-  // Colonne où commence la tête (pour poser les accessoires)
-  const HEAD_STAND = 10, HEAD_DUCK = 20;
+  // Oeil en croix quand le dino perd
+  function deadify(rows) {
+    const g = rows.map(r => r.split(""));
+    const y = g.findIndex(r => r.includes("k"));
+    if (y < 0) return rows;
+    const x = g[y].indexOf("k");
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const r = g[y + dy];
+      if (!r || !r[x + dx] || r[x + dx] === " ") continue;
+      r[x + dx] = (dx === 0) !== (dy === 0) ? "#" : "k";
+    }
+    return g.map(r => r.join(""));
+  }
+
+  // Hitboxes calculées depuis le dessin : une boîte par bande de 3 lignes, un peu rentrée
+  function boxesFrom(rows) {
+    const boxes = [];
+    for (let r = 0; r < rows.length; r += 3) {
+      let min = Infinity, max = -1;
+      const band = rows.slice(r, r + 3);
+      for (const row of band) for (let i = 0; i < row.length; i++) {
+        if (row[i] !== " ") { min = Math.min(min, i); max = Math.max(max, i); }
+      }
+      if (max < 0) continue;
+      boxes.push([min * P + 2, r * P + 1, Math.max(2, (max - min + 1) * P - 4), band.length * P - 2]);
+    }
+    return boxes;
+  }
 
   const BIRD1 = [
     "       #             ",
@@ -311,7 +449,7 @@
     return g.map(r => r.join(""));
   }
 
-  function makeSprite(rows, pal, x0 = 0) {
+  function makeSprite(rows, pal) {
     const w = Math.max(...rows.map(r => r.length));
     const c = document.createElement("canvas");
     c.width = w * P; c.height = rows.length * P;
@@ -322,34 +460,46 @@
         if (col) { x.fillStyle = col; x.fillRect(i * P, j * P, P, P); }
       }
     });
-    c.ox = x0;
     return c;
+  }
+
+  for (const sp of Object.values(SPECIES)) {
+    sp.boxes = {
+      stand: boxesFrom([...sp.top, ...sp.legs[0]]),
+      duck: boxesFrom([...sp.duckTop, ...sp.duckLegs[0]]),
+    };
   }
 
   // ---------- Les dinos ----------
   const DINOS = [
-    { id: "rex", name: "Rex", body: "#4caf50", belly: "#bde7a4", eye: "#1d2b1f" },
-    { id: "braise", name: "Braise", body: "#e2552d", belly: "#ffc46b", eye: "#2a1408",
+    { id: "rex", name: "Rex", species: "rex", body: "#4caf50", belly: "#bde7a4", eye: "#1d2b1f" },
+    { id: "bronto", name: "Bronto", species: "bronto", body: "#4fa39c", belly: "#cdeee6", eye: "#12302c" },
+    { id: "stego", name: "Stégo", species: "stego", body: "#8a7bd1", belly: "#ddd6ff", eye: "#221a40", plate: "#ff8a3d" },
+    { id: "trice", name: "Tricé", species: "trice", body: "#c98a4b", belly: "#f5dcb5", eye: "#2e1a08", frill: "#e8573a", horn: "#fff4dc" },
+    { id: "ankylo", name: "Ankylo", species: "ankylo", body: "#6b7280", belly: "#c9ced8", eye: "#16181d", plate: "#efe8d2" },
+    { id: "braise", name: "Braise", species: "rex", body: "#e2552d", belly: "#ffc46b", eye: "#2a1408",
       acc: { x: 0, y: -2, rows: ["  h   h", " hh  hh"], pal: { h: "#f4ecd8" } } },
-    { id: "givre", name: "Givre", body: "#3d8fe0", belly: "#c6e6ff", eye: "#12233a",
+    { id: "givre", name: "Givre", species: "rex", body: "#3d8fe0", belly: "#c6e6ff", eye: "#12233a",
       acc: { x: -1, y: -4, rows: ["    ww    ", "   rrrr   ", "  rrrrrr  ", " wwwwwwwww"], pal: { w: "#ffffff", r: "#e2405a" } } },
-    { id: "rosie", name: "Rosie", body: "#f06fa8", belly: "#ffd3e6", eye: "#3a1426",
+    { id: "rosie", name: "Rosie", species: "rex", body: "#f06fa8", belly: "#ffd3e6", eye: "#3a1426",
       acc: { x: 0, y: -3, rows: ["  y  y  y", "  yyyryyy", "  yyyyyyy"], pal: { y: "#ffc928", r: "#3fc1ff" } } },
-    { id: "ninja", name: "Ninja", body: "#2d2f36", belly: "#5a606e", eye: "#ffffff",
+    { id: "ninja", name: "Ninja", species: "rex", body: "#2d2f36", belly: "#5a606e", eye: "#ffffff",
       acc: { x: -4, y: 2, rows: [" rrrrrrrrrrrr", "rr"], pal: { r: "#e53935" } } },
-    { id: "cool", name: "Cool", body: "#f2b632", belly: "#fff0b8", eye: "#3a2a05",
+    { id: "cool", name: "Cool", species: "rex", body: "#f2b632", belly: "#fff0b8", eye: "#3a2a05",
       acc: { x: -1, y: 1, rows: ["kkkkkkk", "  kk kk"], pal: { k: "#14141a" } } },
   ];
 
   for (const d of DINOS) {
-    const pal = { "#": d.body, o: d.belly, k: d.eye };
+    const sp = SPECIES[d.species];
+    const pal = { "#": d.body, o: d.belly, k: d.eye, p: d.plate, f: d.frill, h: d.horn };
+    d.sp = sp;
     d.s = {
-      stand: makeSprite([...TREX_TOP, ...LEGS_STAND], pal),
-      run1: makeSprite([...TREX_TOP, ...LEGS_RUN1], pal),
-      run2: makeSprite([...TREX_TOP, ...LEGS_RUN2], pal),
-      dead: makeSprite([...TREX_DEAD_TOP, ...LEGS_STAND], pal),
-      duck1: makeSprite([...DUCK_TOP, ...DUCK_LEGS1], pal),
-      duck2: makeSprite([...DUCK_TOP, ...DUCK_LEGS2], pal),
+      stand: makeSprite([...sp.top, ...sp.legs[0]], pal),
+      run1: makeSprite([...sp.top, ...sp.legs[1]], pal),
+      run2: makeSprite([...sp.top, ...sp.legs[2]], pal),
+      dead: makeSprite([...deadify(sp.top), ...sp.legs[0]], pal),
+      duck1: makeSprite([...sp.duckTop, ...sp.duckLegs[0]], pal),
+      duck2: makeSprite([...sp.duckTop, ...sp.duckLegs[1]], pal),
       acc: d.acc ? makeSprite(d.acc.rows, d.acc.pal) : null,
     };
   }
@@ -364,17 +514,12 @@
 
   // Dessine un dino (sprite + accessoire) à une position
   function drawDino(c, d, kind, x, y) {
-    const sp = d.s[kind];
-    c.drawImage(sp, x, y);
+    c.drawImage(d.s[kind], x, y);
     if (d.s.acc) {
-      const head = kind.startsWith("duck") ? HEAD_DUCK : HEAD_STAND;
+      const head = kind.startsWith("duck") ? d.sp.headDuck : d.sp.head;
       c.drawImage(d.s.acc, x + (head + d.acc.x) * P, y + d.acc.y * P);
     }
   }
-
-  // Hitboxes (plus petites que le dessin, comme l'original)
-  const TREX_BOXES = [[20, 0, 18, 10], [4, 14, 24, 10], [8, 24, 14, 12]];
-  const DUCK_BOXES = [[2, 2, 54, 10], [8, 12, 20, 6]];
 
   // ---------- Choix du dino ----------
   let current = DINOS[0];
@@ -392,9 +537,10 @@
     b.style.setProperty("--c", d.body);
     b.style.setProperty("--tint", mix(d.body, "#ffffff", 0.86));
     const pv = document.createElement("canvas");
-    pv.width = 58; pv.height = 46;
+    pv.width = 84; pv.height = 56;
     const pc = pv.getContext("2d");
-    drawDino(pc, d, "stand", 10, 8);
+    const st = d.s.stand;
+    drawDino(pc, d, "stand", Math.round((pv.width - st.width) / 2), pv.height - 2 - st.height);
     const label = document.createElement("span");
     label.textContent = d.name;
     b.append(pv, label);
@@ -510,7 +656,7 @@
   function dinoBoxes() {
     const sprite = dino.ducking ? current.s.duck1 : current.s.stand;
     const by = GROUND - sprite.height + 2 + dino.y;
-    return (dino.ducking ? DUCK_BOXES : TREX_BOXES).map(([x, y, w, h]) => [DINO_X + x, by + y, w, h]);
+    return current.sp.boxes[dino.ducking ? "duck" : "stand"].map(([x, y, w, h]) => [DINO_X + x, by + y, w, h]);
   }
 
   const hit = (a, b) => a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
@@ -708,7 +854,7 @@
     ctx.fillStyle = hud;
     if (state.mode === "intro") {
       ctx.font = '10px "Press Start 2P", ui-monospace, monospace';
-      ctx.fillText(current.name.toUpperCase() + " EST PRÊT !", W / 2 + 30, 50);
+      ctx.fillText(current.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase() + " EST PRET !", W / 2 + 30, 50);
       ctx.font = '8px "Press Start 2P", ui-monospace, monospace';
       ctx.fillText("ESPACE OU CLIC POUR JOUER", W / 2 + 30, 70);
     }
