@@ -1,0 +1,965 @@
+<title>Course du Dino 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* Layout : une colonne centrée. Choix du dino en haut, scène 3D vue de derrière au centre, commandes dessous. Thème clair unique, la scène a son propre cycle jour/nuit. */
+  :root {
+    --bg: #fbfaf6;
+    --ink: #2b3a4a;
+    --muted: #7a8490;
+    --line: #e3e1da;
+    --card: #ffffff;
+    --key: #f2f1ec;
+    --hud: #ffffff;
+    --pixel: "Press Start 2P", ui-monospace, "Courier New", monospace;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    padding-inline: 16px;
+    padding-block: 28px;
+    box-sizing: border-box;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  h1 {
+    font-family: var(--pixel);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; max-width: 65ch; }
+
+  .picker { display: flex; flex-direction: column; gap: 10px; }
+  .picker h2 {
+    font-family: var(--pixel);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+  .dinos {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .dino-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 4px 9px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--ink);
+    font: inherit;
+    transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+  .dino-card:hover { transform: translateY(-2px); }
+  .dino-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .dino-card[aria-pressed="true"] { border-color: var(--c); background: var(--tint); }
+  .dino-card img { width: 100%; max-width: 96px; aspect-ratio: 4 / 3; height: auto; object-fit: contain; }
+  .dino-card span { font-family: var(--pixel); font-size: clamp(6px, 1.8vw, 8px); }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    max-height: 72vh;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #9fd8ff;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    outline: none;
+    cursor: pointer;
+  }
+  .stage:focus-visible { box-shadow: 0 0 0 3px var(--line); }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .hud {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    display: flex;
+    gap: 16px;
+    font-family: var(--pixel);
+    font-size: clamp(9px, 2vw, 12px);
+    color: var(--hud);
+    text-shadow: 0 2px 0 rgba(20, 30, 60, 0.35);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .hud .hi { opacity: 0.75; }
+  .hud .flash { animation: blink 0.25s steps(1) 4; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 9%;
+    gap: 12px;
+    text-align: center;
+    font-family: var(--pixel);
+    color: var(--hud);
+    text-shadow: 0 2px 0 rgba(20, 30, 60, 0.4);
+    pointer-events: none;
+  }
+  .msg[hidden] { display: none; }
+  .msg .big { font-size: clamp(12px, 3vw, 20px); margin: 0; letter-spacing: 0.06em; }
+  .msg .sub { font-size: clamp(7px, 1.6vw, 10px); margin: 0; }
+  .loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: var(--pixel);
+    font-size: 10px;
+    color: var(--ink);
+    padding-inline: 16px;
+    text-align: center;
+  }
+
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  kbd {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--ink);
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 4px 6px;
+    margin-right: 6px;
+  }
+  kbd.arrow { font-family: var(--body); font-size: 12px; padding: 1px 6px; }
+  .touch { display: none; grid-template-columns: 1fr 1.4fr 1.4fr 1fr; gap: 8px; }
+  .touch button {
+    font-family: var(--pixel);
+    font-size: 10px;
+    color: var(--ink);
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-bottom-width: 3px;
+    border-radius: 8px;
+    padding: 18px 4px;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .touch button:active { transform: translateY(1px); border-bottom-width: 2px; }
+  .touch button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .touch-hint { display: none; margin: 0; font-size: 13px; color: var(--muted); }
+  @media (hover: none) and (pointer: coarse) {
+    .touch { display: grid; }
+    .touch-hint { display: block; }
+    .keys { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dino-card { transition: none; }
+    .dino-card:hover { transform: none; }
+  }
+</style>
+
+<main>
+  <h1>Course du Dino 3D</h1>
+  <p class="lede">Ton dino court dans le désert et tu le vois de dos. Change de couloir pour éviter les cactus, saute par-dessus, et baisse-toi sous les ptérodactyles. La vitesse monte sans arrêt, et la nuit tombe tous les 700 points.</p>
+
+  <section class="picker" aria-labelledby="pick-title">
+    <h2 id="pick-title">Choisis ton dino</h2>
+    <div class="dinos" id="dinos"></div>
+  </section>
+
+  <div class="stage" id="stage" tabindex="0" aria-label="Jeu du dinosaure en 3D. Flèches gauche et droite pour changer de couloir, espace pour sauter, flèche bas pour se baisser.">
+    <div class="loading" id="loading">Chargement de la 3D…</div>
+    <div class="hud"><span class="hi" id="hi"></span><span id="score">00000</span></div>
+    <div class="msg" id="msg">
+      <p class="big" id="msg-title">PRET ?</p>
+      <p class="sub" id="msg-sub">ESPACE OU TOUCHE POUR JOUER</p>
+    </div>
+  </div>
+
+  <ul class="keys">
+    <li><kbd class="arrow">←</kbd><kbd class="arrow">→</kbd>changer de couloir</li>
+    <li><kbd>Espace</kbd><kbd class="arrow">↑</kbd>sauter</li>
+    <li><kbd class="arrow">↓</kbd>se baisser</li>
+  </ul>
+  <p class="touch-hint">Glisse le doigt sur le jeu : à gauche ou à droite pour changer de couloir, vers le haut pour sauter, vers le bas pour te baisser.</p>
+  <div class="touch">
+    <button id="btn-left" type="button" aria-label="Couloir de gauche">◀</button>
+    <button id="btn-jump" type="button">Sauter</button>
+    <button id="btn-duck" type="button">Baisser</button>
+    <button id="btn-right" type="button" aria-label="Couloir de droite">▶</button>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const stage = document.getElementById("stage");
+  const loading = document.getElementById("loading");
+  if (!window.THREE) { loading.textContent = "La 3D n'a pas pu se charger. Recharge la page."; return; }
+  loading.remove();
+
+  // ---------- Les dinos ----------
+  const DINOS = [
+    { id: "rex", name: "Rex", species: "rex", body: "#4caf50", belly: "#bde7a4", eye: "#1d2b1f" },
+    { id: "bronto", name: "Bronto", species: "bronto", body: "#4fa39c", belly: "#cdeee6", eye: "#12302c" },
+    { id: "stego", name: "Stégo", species: "stego", body: "#8a7bd1", belly: "#ddd6ff", eye: "#221a40", plate: "#ff8a3d" },
+    { id: "trice", name: "Tricé", species: "trice", body: "#c98a4b", belly: "#f5dcb5", eye: "#2e1a08", frill: "#e8573a", horn: "#fff4dc" },
+    { id: "ankylo", name: "Ankylo", species: "ankylo", body: "#6b7280", belly: "#c9ced8", eye: "#16181d", plate: "#efe8d2" },
+    { id: "braise", name: "Braise", species: "rex", body: "#e2552d", belly: "#ffc46b", eye: "#2a1408", acc: "horns" },
+    { id: "givre", name: "Givre", species: "rex", body: "#3d8fe0", belly: "#c6e6ff", eye: "#12233a", acc: "bonnet" },
+    { id: "rosie", name: "Rosie", species: "rex", body: "#f06fa8", belly: "#ffd3e6", eye: "#3a1426", acc: "crown" },
+    { id: "ninja", name: "Ninja", species: "rex", body: "#2d2f36", belly: "#5a606e", eye: "#ffffff", acc: "band" },
+    { id: "cool", name: "Cool", species: "rex", body: "#f2b632", belly: "#fff0b8", eye: "#3a2a05", acc: "glasses" },
+  ];
+  const plainName = d => d.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+  // ---------- Briques 3D ----------
+  const mats = new Map();
+  const mat = c => {
+    if (!mats.has(c)) mats.set(c, new THREE.MeshLambertMaterial({ color: c }));
+    return mats.get(c);
+  };
+  function box(parent, w, h, d, color, x, y, z, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    parent.add(m);
+    return m;
+  }
+  function cone(parent, r, h, color, x, y, z, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), mat(color));
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    parent.add(m);
+    return m;
+  }
+  function leg(parent, x, y, z, len, thick, color) {
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    box(g, thick, len, thick, color, 0, -len / 2, 0);
+    box(g, thick * 1.15, 0.12, thick * 1.5, color, 0, -len + 0.06, -thick * 0.25);
+    parent.add(g);
+    return g;
+  }
+  function eyes(parent, d, x, y, z) {
+    box(parent, 0.06, 0.12, 0.12, d.eye, x, y, z);
+    box(parent, 0.06, 0.12, 0.12, d.eye, -x, y, z);
+  }
+
+  // Chaque modèle regarde vers -z (vers le fond de la piste)
+  const BUILD = {
+    rex(d, root) {
+      const legs = [leg(root, -0.22, 0.9, 0.1, 0.9, 0.26, d.body), leg(root, 0.22, 0.9, 0.1, 0.9, 0.26, d.body)];
+      box(root, 0.78, 0.85, 1.0, d.body, 0, 1.3, 0.05);
+      box(root, 0.56, 0.6, 0.1, d.belly, 0, 1.2, -0.47);
+      box(root, 0.56, 0.5, 0.5, d.body, 0, 1.75, -0.35);
+      box(root, 0.62, 0.5, 0.82, d.body, 0, 2.05, -0.75);
+      box(root, 0.5, 0.16, 0.62, d.belly, 0, 1.76, -0.86);
+      eyes(root, d, 0.32, 2.16, -0.86);
+      box(root, 0.1, 0.3, 0.1, d.body, 0.3, 1.32, -0.52, 0.5);
+      box(root, 0.1, 0.3, 0.1, d.body, -0.3, 1.32, -0.52, 0.5);
+      const tail = new THREE.Group();
+      tail.position.set(0, 1.25, 0.55);
+      box(tail, 0.46, 0.42, 0.8, d.body, 0, 0, 0.38);
+      box(tail, 0.28, 0.26, 0.75, d.body, 0, -0.1, 1.05);
+      root.add(tail);
+      return { legs, tail, h: 2.3, w: 0.8, d: 1.6, duckH: 1.2, head: [0, 2.3, -0.75] };
+    },
+    bronto(d, root) {
+      const legs = [
+        leg(root, -0.38, 0.85, -0.55, 0.85, 0.32, d.body), leg(root, 0.38, 0.85, 0.55, 0.85, 0.32, d.body),
+        leg(root, 0.38, 0.85, -0.55, 0.85, 0.32, d.body), leg(root, -0.38, 0.85, 0.55, 0.85, 0.32, d.body),
+      ];
+      box(root, 1.0, 0.9, 1.7, d.body, 0, 1.3, 0);
+      box(root, 0.8, 0.1, 1.4, d.belly, 0, 0.84, 0);
+      const neck = new THREE.Group();
+      neck.position.set(0, 1.55, -0.75);
+      neck.rotation.x = -0.45;
+      box(neck, 0.36, 1.6, 0.4, d.body, 0, 0.8, 0);
+      box(neck, 0.3, 1.3, 0.06, d.belly, 0, 0.7, -0.22);
+      root.add(neck);
+      box(root, 0.46, 0.4, 0.72, d.body, 0, 2.98, -1.62);
+      eyes(root, d, 0.24, 3.06, -1.72);
+      const tail = new THREE.Group();
+      tail.position.set(0, 1.35, 0.85);
+      box(tail, 0.5, 0.45, 1.0, d.body, 0, 0, 0.5);
+      box(tail, 0.3, 0.28, 1.0, d.body, 0, -0.15, 1.4);
+      box(tail, 0.16, 0.16, 0.8, d.body, 0, -0.3, 2.2);
+      root.add(tail);
+      return { legs, tail, h: 3.2, w: 1.0, d: 1.8, duckH: 1.2, head: [0, 3.2, -1.62] };
+    },
+    stego(d, root) {
+      const legs = [
+        leg(root, -0.36, 0.6, -0.5, 0.6, 0.3, d.body), leg(root, 0.36, 0.6, 0.5, 0.6, 0.3, d.body),
+        leg(root, 0.36, 0.6, -0.5, 0.6, 0.3, d.body), leg(root, -0.36, 0.6, 0.5, 0.6, 0.3, d.body),
+      ];
+      box(root, 0.95, 0.75, 1.7, d.body, 0, 0.95, 0);
+      box(root, 0.7, 0.25, 1.2, d.body, 0, 1.4, 0);
+      box(root, 0.75, 0.1, 1.4, d.belly, 0, 0.56, 0);
+      for (let i = -3; i <= 3; i++) {
+        const s = 1 - Math.abs(i) / 5;
+        box(root, 0.08, s * 0.55, s * 0.55, d.plate, i % 2 ? 0.13 : -0.13, 1.55 + s * 0.12, i * 0.24, Math.PI / 4);
+      }
+      box(root, 0.4, 0.34, 0.55, d.body, 0, 0.8, -1.08);
+      eyes(root, d, 0.21, 0.88, -1.18);
+      const tail = new THREE.Group();
+      tail.position.set(0, 1.0, 0.85);
+      box(tail, 0.45, 0.4, 0.9, d.body, 0, 0, 0.4, 0.15);
+      box(tail, 0.26, 0.24, 0.8, d.body, 0, -0.15, 1.1, 0.15);
+      cone(tail, 0.06, 0.45, d.plate, 0.25, 0, 1.25, 0, 0, -1.2);
+      cone(tail, 0.06, 0.45, d.plate, -0.25, 0, 1.25, 0, 0, 1.2);
+      cone(tail, 0.06, 0.45, d.plate, 0.25, -0.05, 1.0, 0, 0, -1.2);
+      cone(tail, 0.06, 0.45, d.plate, -0.25, -0.05, 1.0, 0, 0, 1.2);
+      root.add(tail);
+      return { legs, tail, h: 1.95, w: 0.95, d: 1.8, duckH: 1.2, head: [0, 1.0, -1.08] };
+    },
+    trice(d, root) {
+      const legs = [
+        leg(root, -0.4, 0.7, -0.5, 0.7, 0.34, d.body), leg(root, 0.4, 0.7, 0.5, 0.7, 0.34, d.body),
+        leg(root, 0.4, 0.7, -0.5, 0.7, 0.34, d.body), leg(root, -0.4, 0.7, 0.5, 0.7, 0.34, d.body),
+      ];
+      box(root, 1.05, 0.9, 1.6, d.body, 0, 1.15, 0);
+      box(root, 0.85, 0.1, 1.3, d.belly, 0, 0.68, 0);
+      box(root, 0.66, 0.6, 0.75, d.body, 0, 1.15, -1.05);
+      box(root, 0.36, 0.3, 0.32, d.belly, 0, 1.0, -1.52);
+      eyes(root, d, 0.34, 1.28, -1.15);
+      box(root, 1.35, 1.0, 0.14, d.frill, 0, 1.6, -0.72, 0.35);
+      box(root, 1.1, 0.8, 0.06, d.body, 0, 1.58, -0.64, 0.35);
+      cone(root, 0.08, 0.7, d.horn, 0.2, 1.55, -1.3, -1.2);
+      cone(root, 0.08, 0.7, d.horn, -0.2, 1.55, -1.3, -1.2);
+      cone(root, 0.07, 0.32, d.horn, 0, 1.28, -1.6, -0.5);
+      const tail = new THREE.Group();
+      tail.position.set(0, 1.1, 0.8);
+      box(tail, 0.45, 0.4, 0.8, d.body, 0, 0, 0.35, 0.15);
+      box(tail, 0.24, 0.22, 0.7, d.body, 0, -0.12, 0.95, 0.15);
+      root.add(tail);
+      return { legs, tail, h: 2.1, w: 1.05, d: 1.8, duckH: 1.2, head: [0, 1.45, -1.05] };
+    },
+    ankylo(d, root) {
+      const legs = [
+        leg(root, -0.5, 0.45, -0.5, 0.45, 0.32, d.body), leg(root, 0.5, 0.45, 0.5, 0.45, 0.32, d.body),
+        leg(root, 0.5, 0.45, -0.5, 0.45, 0.32, d.body), leg(root, -0.5, 0.45, 0.5, 0.45, 0.32, d.body),
+      ];
+      box(root, 1.3, 0.6, 1.7, d.body, 0, 0.75, 0);
+      box(root, 1.1, 0.25, 1.5, d.body, 0, 1.15, 0);
+      box(root, 1.1, 0.1, 1.4, d.belly, 0, 0.42, 0);
+      for (let i = -2; i <= 2; i++) {
+        cone(root, 0.09, 0.3, d.plate, 0.72, 0.85, i * 0.32, 0, 0, -Math.PI / 2);
+        cone(root, 0.09, 0.3, d.plate, -0.72, 0.85, i * 0.32, 0, 0, Math.PI / 2);
+        cone(root, 0.08, 0.22, d.plate, 0.3, 1.36, i * 0.32);
+        cone(root, 0.08, 0.22, d.plate, -0.3, 1.36, i * 0.32);
+      }
+      box(root, 0.5, 0.36, 0.5, d.body, 0, 0.65, -1.05);
+      eyes(root, d, 0.26, 0.74, -1.12);
+      const tail = new THREE.Group();
+      tail.position.set(0, 0.8, 0.85);
+      box(tail, 0.26, 0.22, 1.2, d.body, 0, 0, 0.6);
+      box(tail, 0.56, 0.4, 0.45, d.plate, 0, 0, 1.3);
+      root.add(tail);
+      return { legs, tail, h: 1.3, w: 1.3, d: 1.8, duckH: 1.0, head: [0, 0.83, -1.05] };
+    },
+  };
+
+  const ACC = {
+    horns(root, [x, y, z]) {
+      cone(root, 0.07, 0.32, "#f4ecd8", 0.18, y + 0.12, z + 0.15, 0.3);
+      cone(root, 0.07, 0.32, "#f4ecd8", -0.18, y + 0.12, z + 0.15, 0.3);
+    },
+    bonnet(root, [x, y, z]) {
+      box(root, 0.7, 0.1, 0.88, "#ffffff", 0, y + 0.02, z);
+      box(root, 0.6, 0.24, 0.74, "#e2405a", 0, y + 0.18, z + 0.04);
+      box(root, 0.2, 0.2, 0.2, "#ffffff", 0, y + 0.38, z + 0.05);
+    },
+    crown(root, [x, y, z]) {
+      box(root, 0.46, 0.12, 0.46, "#ffc928", 0, y + 0.06, z + 0.05);
+      for (const [cx, cz] of [[-0.18, -0.13], [0.18, -0.13], [-0.18, 0.23], [0.18, 0.23], [0, -0.13]]) {
+        cone(root, 0.06, 0.18, "#ffc928", cx, y + 0.2, z + cz);
+      }
+      box(root, 0.1, 0.1, 0.04, "#3fc1ff", 0, y + 0.07, z - 0.2);
+    },
+    band(root, [x, y, z], parts) {
+      box(root, 0.66, 0.12, 0.86, "#e53935", 0, y - 0.15, z);
+      const tails = new THREE.Group();
+      tails.position.set(0, y - 0.15, z + 0.43);
+      box(tails, 0.06, 0.1, 0.5, "#e53935", 0.08, 0, 0.25, 0.3, 0.15);
+      box(tails, 0.06, 0.1, 0.45, "#e53935", -0.08, -0.04, 0.22, 0.45, -0.15);
+      root.add(tails);
+      parts.band = tails;
+    },
+    glasses(root, [x, y, z]) {
+      box(root, 0.68, 0.14, 0.06, "#14141a", 0, y - 0.12, z - 0.42);
+      box(root, 0.04, 0.06, 0.6, "#14141a", 0.33, y - 0.1, z - 0.12);
+      box(root, 0.04, 0.06, 0.6, "#14141a", -0.33, y - 0.1, z - 0.12);
+    },
+  };
+
+  function buildDino(d) {
+    const root = new THREE.Group();
+    const parts = BUILD[d.species](d, root);
+    if (d.acc) ACC[d.acc](root, parts.head, parts);
+    parts.root = root;
+    return parts;
+  }
+
+  // ---------- Vignettes des cartes ----------
+  const list = document.getElementById("dinos");
+  let current = DINOS[0];
+  try { current = DINOS.find(d => d.id === localStorage.getItem("dino3d-choice")) || DINOS[0]; } catch (e) {}
+
+  function makeThumbs() {
+    let r;
+    try { r = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { return {}; }
+    r.setSize(192, 144, false);
+    r.setClearColor(0x000000, 0);
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xffffff, 0xb08a5a, 0.95));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.6);
+    dl.position.set(-3, 6, -4);
+    sc.add(dl);
+    const cam = new THREE.PerspectiveCamera(32, 4 / 3, 0.1, 50);
+    const out = {};
+    for (const d of DINOS) {
+      const m = buildDino(d);
+      sc.add(m.root);
+      const size = Math.max(m.h, 2.6);
+      cam.position.set(-size * 1.35, m.h * 0.75 + 0.5, -size * 1.35);
+      cam.lookAt(0, m.h * 0.45, 0.2);
+      r.render(sc, cam);
+      out[d.id] = r.domElement.toDataURL();
+      sc.remove(m.root);
+    }
+    r.dispose();
+    if (r.forceContextLoss) r.forceContextLoss();
+    return out;
+  }
+  const thumbs = makeThumbs();
+  const tint = c => "#" + new THREE.Color(c).lerp(new THREE.Color("#ffffff"), 0.86).getHexString();
+
+  const cards = DINOS.map(d => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "dino-card";
+    b.id = "dino3d-" + d.id;
+    b.style.setProperty("--c", d.body);
+    b.style.setProperty("--tint", tint(d.body));
+    const img = document.createElement("img");
+    img.alt = "";
+    if (thumbs[d.id]) img.src = thumbs[d.id];
+    const label = document.createElement("span");
+    label.textContent = d.name;
+    b.append(img, label);
+    b.addEventListener("click", () => { choose(d); stage.focus({ preventScroll: true }); });
+    list.append(b);
+    return b;
+  });
+
+  // ---------- Scène ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  stage.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const DAY = { sky: new THREE.Color("#9fd8ff"), hemi: new THREE.Color("#ffffff"), sun: 0.55, hemiI: 0.6 };
+  const NIGHT = { sky: new THREE.Color("#1b2448"), hemi: new THREE.Color("#7f8cff"), sun: 0.12, hemiI: 0.4 };
+  scene.background = DAY.sky.clone();
+  scene.fog = new THREE.Fog(DAY.sky.clone(), 40, 125);
+
+  const camera = new THREE.PerspectiveCamera(60, 16 / 10, 0.1, 400);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xc49a5c, DAY.hemiI);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff4e0, DAY.sun);
+  sun.position.set(-6, 12, 5);
+  scene.add(sun);
+
+  // Soleil, lune, étoiles
+  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(9, 32), new THREE.MeshBasicMaterial({ color: "#ffe066", fog: false, transparent: true }));
+  sunDisc.position.set(60, 32, -170);
+  scene.add(sunDisc);
+  const moonDisc = new THREE.Mesh(new THREE.CircleGeometry(7, 32), new THREE.MeshBasicMaterial({ color: "#f6f1c7", fog: false, transparent: true, opacity: 0 }));
+  moonDisc.position.set(60, 32, -169);
+  scene.add(moonDisc);
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = [];
+  for (let i = 0; i < 260; i++) starPos.push((Math.random() - 0.5) * 400, 12 + Math.random() * 120, -150 - Math.random() * 30);
+  starGeo.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0 }));
+  scene.add(stars);
+
+  // Sol qui défile
+  function sandTexture(track) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const x = c.getContext("2d");
+    x.fillStyle = track ? "#e2b878" : "#ecc98c";
+    x.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 90; i++) {
+      x.fillStyle = Math.random() < 0.5 ? "#d4a868" : "#f3dcaa";
+      x.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 3, 2);
+    }
+    if (track) {
+      x.fillStyle = "#c99a5a";
+      for (const lx of [128 / 3, 256 / 3]) for (let y = 0; y < 128; y += 32) x.fillRect(lx - 1.5, y, 3, 18);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.magFilter = THREE.NearestFilter;
+    return t;
+  }
+  const LANE = 2.2;
+  const groundTex = sandTexture(false);
+  groundTex.repeat.set(16, 40);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 240), new THREE.MeshLambertMaterial({ map: groundTex }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.z = -100;
+  scene.add(ground);
+  const trackTex = sandTexture(true);
+  trackTex.repeat.set(1, 40);
+  const track = new THREE.Mesh(new THREE.PlaneGeometry(LANE * 3, 240), new THREE.MeshLambertMaterial({ map: trackTex }));
+  track.rotation.x = -Math.PI / 2;
+  track.position.set(0, 0.01, -100);
+  scene.add(track);
+
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.16, depthWrite: false });
+  const shadowGeo = new THREE.CircleGeometry(1, 20);
+  function blob(parent, r, y = 0.02) {
+    const s = new THREE.Mesh(shadowGeo, shadowMat);
+    s.rotation.x = -Math.PI / 2;
+    s.scale.set(r, r, 1);
+    s.position.y = y;
+    parent.add(s);
+    return s;
+  }
+
+  // Cactus et ptérodactyles
+  function makeCactus(big) {
+    const g = new THREE.Group();
+    const h = big ? 1.55 : 1.05, t = big ? 0.46 : 0.36;
+    box(g, t, h, t, "#2fa35a", 0, h / 2, 0);
+    box(g, t * 0.3, h * 0.9, t + 0.02, "#1e7a40", t * 0.2, h / 2, 0);
+    box(g, 0.24, 0.2, 0.24, "#2fa35a", -t / 2 - 0.12, h * 0.45, 0);
+    box(g, 0.22, h * 0.35, 0.22, "#2fa35a", -t / 2 - 0.2, h * 0.6, 0);
+    box(g, 0.24, 0.2, 0.24, "#2fa35a", t / 2 + 0.12, h * 0.55, 0);
+    box(g, 0.22, h * 0.3, 0.22, "#2fa35a", t / 2 + 0.2, h * 0.68, 0);
+    if (big) box(g, 0.14, 0.1, 0.14, "#ff5fa2", 0, h + 0.05, 0);
+    blob(g, 0.45);
+    return { group: g, hw: 0.32, hd: 0.3, y0: 0, y1: h };
+  }
+  function makePtero() {
+    const g = new THREE.Group();
+    const body = new THREE.Group();
+    body.position.y = 1.8;
+    g.add(body);
+    box(body, 0.34, 0.3, 0.9, "#8a5cc7", 0, 0, 0);
+    box(body, 0.26, 0.26, 0.34, "#8a5cc7", 0, 0.08, 0.55);
+    cone(body, 0.1, 0.45, "#ff9f1c", 0, 0.04, 0.9, Math.PI / 2);
+    box(body, 0.06, 0.24, 0.4, "#6d43a3", 0, 0.24, 0.35, -0.6);
+    box(body, 0.05, 0.08, 0.08, "#2a1840", 0.14, 0.14, 0.62);
+    box(body, 0.05, 0.08, 0.08, "#2a1840", -0.14, 0.14, 0.62);
+    const wings = [];
+    for (const s of [1, -1]) {
+      const w = new THREE.Group();
+      w.position.set(0.15 * s, 0.05, 0);
+      box(w, 1.3, 0.06, 0.6, "#a47ae0", 0.65 * s, 0, 0);
+      box(w, 0.6, 0.05, 0.3, "#8a5cc7", 1.4 * s, 0, 0.1);
+      body.add(w);
+      wings.push({ w, s });
+    }
+    blob(g, 0.6);
+    return { group: g, hw: 0.6, hd: 0.45, y0: 1.55, y1: 2.05, wings };
+  }
+
+  // Décor sur les côtés
+  const decor = [];
+  function makeRock() {
+    const g = new THREE.Group();
+    const s = 0.6 + Math.random() * 1.2;
+    box(g, s * 1.4, s, s, "#c9935a", 0, s / 2, 0, 0, Math.random());
+    box(g, s * 0.8, s * 0.5, s * 0.8, "#b57f48", s * 0.3, s * 1.1, 0, 0, Math.random());
+    return g;
+  }
+  for (let i = 0; i < 34; i++) {
+    const side = i % 2 ? 1 : -1;
+    const g = Math.random() < 0.55 ? makeCactus(Math.random() < 0.5).group : makeRock();
+    const s = 0.8 + Math.random() * 0.9;
+    g.scale.set(s, s, s);
+    g.position.set(side * (5 + Math.random() * 18), 0, -Math.random() * 130 + 10);
+    scene.add(g);
+    decor.push(g);
+  }
+  for (let i = 0; i < 9; i++) {
+    const g = new THREE.Group();
+    const w = 14 + Math.random() * 20, h = 6 + Math.random() * 10;
+    box(g, w, h, 10, "#d9a66b", 0, h / 2, 0);
+    box(g, w * 0.7, 2, 8, "#c88f55", 0, h + 1, 0);
+    g.position.set((i - 4) * 32 + (Math.random() - 0.5) * 12, 0, -150 - Math.random() * 20);
+    scene.add(g);
+  }
+
+  // ---------- Le dino du joueur ----------
+  let model = null, dinoShadow = null;
+  const player = new THREE.Group();
+  scene.add(player);
+  dinoShadow = blob(scene, 0.9);
+
+  function choose(d) {
+    current = d;
+    cards.forEach((b, i) => b.setAttribute("aria-pressed", DINOS[i] === d ? "true" : "false"));
+    try { localStorage.setItem("dino3d-choice", d.id); } catch (e) {}
+    if (model) player.remove(model.root);
+    model = buildDino(d);
+    player.add(model.root);
+    dinoShadow.scale.set(model.w * 0.9, model.d * 0.8, 1);
+    if (state && state.mode !== "playing") showMessage();
+  }
+
+  // ---------- Son ----------
+  let audio = null;
+  function beep(freq, dur, type = "square", vol = 0.05) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.value = vol;
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+      o.connect(g).connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + dur);
+    } catch (e) {}
+  }
+
+  // ---------- HUD ----------
+  const elScore = document.getElementById("score");
+  const elHi = document.getElementById("hi");
+  const elMsg = document.getElementById("msg");
+  const elTitle = document.getElementById("msg-title");
+  const elSub = document.getElementById("msg-sub");
+  const pad = n => String(Math.floor(n)).padStart(5, "0");
+  let hi = 0;
+  try { hi = parseInt(localStorage.getItem("dino3d-hi") || "0", 10) || 0; } catch (e) {}
+  const showHi = () => { elHi.textContent = hi > 0 ? "HI " + pad(hi) : ""; };
+  showHi();
+
+  function showMessage() {
+    elMsg.hidden = state.mode === "playing";
+    if (state.mode === "intro") {
+      elTitle.textContent = plainName(current) + " EST PRET !";
+      elSub.textContent = "ESPACE OU TOUCHE POUR JOUER";
+    } else if (state.mode === "over") {
+      elTitle.textContent = "GAME OVER";
+      elSub.textContent = "ESPACE OU TOUCHE POUR REJOUER";
+    }
+  }
+
+  // ---------- État du jeu ----------
+  let state = null, obstacles = [];
+  const dino = { lane: 0, x: 0, y: 0, vy: 0, duckTimer: 0 };
+  const keys = { duck: false };
+
+  function reset(mode) {
+    for (const o of obstacles) scene.remove(o.group);
+    obstacles = [];
+    state = {
+      mode, speed: 13, score: 0, lastHundred: 0, nextSpawn: 30, t: 0, deadAt: 0,
+      night: false, nightT: state ? state.nightT : 0, nightLevel: 0, nightUntil: 0, shake: 0,
+    };
+    Object.assign(dino, { lane: 0, x: 0, y: 0, vy: 0, duckTimer: 0 });
+    if (model) model.root.rotation.set(0, 0, 0);
+    elScore.textContent = pad(0);
+    showMessage();
+  }
+
+  const onGround = () => dino.y <= 0.0001;
+  const ducking = () => (keys.duck || dino.duckTimer > 0) && onGround();
+
+  function startOrJump() {
+    if (state.mode === "intro") { state.mode = "playing"; showMessage(); jump(); return; }
+    if (state.mode === "over") {
+      if (performance.now() - state.deadAt > 500) { reset("playing"); }
+      return;
+    }
+    jump();
+  }
+  function jump() {
+    if (state.mode === "playing" && onGround()) {
+      dino.vy = 11;
+      dino.duckTimer = 0;
+      beep(660, 0.08);
+    }
+  }
+  function duckTap() {
+    if (state.mode !== "playing") return;
+    dino.duckTimer = 0.65;
+    if (!onGround()) dino.vy = Math.min(dino.vy, -8);
+  }
+  function move(dir) {
+    if (state.mode !== "playing") {
+      const i = DINOS.indexOf(current), n = DINOS.length;
+      choose(DINOS[(i + (dir > 0 ? 1 : n - 1)) % n]);
+      return;
+    }
+    const nl = Math.max(-1, Math.min(1, dino.lane + dir));
+    if (nl !== dino.lane) { dino.lane = nl; beep(440, 0.04, "triangle", 0.04); }
+  }
+
+  // ---------- Obstacles ----------
+  function addObstacle(o, lane, z = -110) {
+    o.lane = lane;
+    o.group.position.set(lane * LANE, 0, z);
+    scene.add(o.group);
+    obstacles.push(o);
+  }
+  function spawn() {
+    const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
+    const r = Math.random();
+    if (state.score > 300 && r < 0.3) {
+      addObstacle(makePtero(), lanes[0]);
+      if (state.score > 800 && Math.random() < 0.4) addObstacle(makePtero(), lanes[1]);
+      return;
+    }
+    if (state.score > 150 && r < 0.45) {
+      for (const l of lanes) addObstacle(makeCactus(false), l);
+      return;
+    }
+    if (r < 0.75) {
+      addObstacle(makeCactus(Math.random() < 0.45), lanes[0]);
+      addObstacle(makeCactus(Math.random() < 0.45), lanes[1]);
+      return;
+    }
+    addObstacle(makeCactus(Math.random() < 0.5), lanes[0]);
+  }
+
+  // ---------- Mise à jour ----------
+  function update(dt) {
+    state.t += dt;
+    const target = state.night ? 1 : 0;
+    state.nightT += Math.sign(target - state.nightT) * Math.min(Math.abs(target - state.nightT), dt * 0.6);
+
+    const m = model;
+    if (state.mode === "playing") {
+      state.speed = Math.min(34, state.speed + dt * 0.28);
+      const dz = state.speed * dt;
+
+      // Score
+      state.score += dz * 0.6;
+      const hundreds = Math.floor(state.score / 100);
+      if (hundreds > state.lastHundred) {
+        state.lastHundred = hundreds;
+        elScore.classList.remove("flash"); void elScore.offsetWidth; elScore.classList.add("flash");
+        beep(990, 0.07); setTimeout(() => beep(1320, 0.1), 90);
+      }
+      elScore.textContent = pad(state.score);
+      const lvl = Math.floor(state.score / 700);
+      if (lvl > state.nightLevel) { state.nightLevel = lvl; state.night = true; state.nightUntil = state.score + 250; }
+      if (state.night && state.score > state.nightUntil) state.night = false;
+
+      // Défilement
+      groundTex.offset.y += dz * 40 / 240;
+      trackTex.offset.y += dz * 40 / 240;
+      for (const g of decor) {
+        g.position.z += dz;
+        if (g.position.z > 12) {
+          g.position.z -= 140;
+          g.position.x = (g.position.x > 0 ? 1 : -1) * (5 + Math.random() * 18);
+        }
+      }
+
+      // Dino
+      dino.x += (dino.lane * LANE - dino.x) * Math.min(1, dt * 14);
+      if (dino.duckTimer > 0) dino.duckTimer -= dt;
+      if (!onGround() || dino.vy > 0) {
+        const g = keys.duck || dino.duckTimer > 0 ? 75 : 30;
+        dino.vy -= g * dt;
+        dino.y = Math.max(0, dino.y + dino.vy * dt);
+        if (dino.y === 0) dino.vy = 0;
+      }
+
+      // Obstacles
+      state.nextSpawn -= dz;
+      if (state.nextSpawn <= 0) {
+        spawn();
+        state.nextSpawn = Math.max(16, state.speed * (1.05 + Math.random() * 0.6));
+      }
+      for (const o of obstacles) {
+        o.group.position.z += dz * (o.wings ? 1.15 : 1);
+        if (o.wings) for (const { w, s } of o.wings) w.rotation.z = Math.sin(state.t * 12) * 0.6 * s;
+      }
+      obstacles = obstacles.filter(o => {
+        if (o.group.position.z > 12) { scene.remove(o.group); return false; }
+        return true;
+      });
+
+      // Collisions (boîtes un peu plus petites que le dessin)
+      const hw = m.w * 0.4, hd = m.d * 0.4;
+      const top = dino.y + (ducking() ? m.duckH : m.h) * 0.9;
+      for (const o of obstacles) {
+        const p = o.group.position;
+        if (Math.abs(p.x - dino.x) < hw + o.hw && Math.abs(p.z) < hd + o.hd && dino.y + 0.05 < o.y1 && top > o.y0) {
+          gameOver();
+          break;
+        }
+      }
+    }
+
+    // Animation du dino
+    const r = m.root;
+    player.position.set(dino.x, dino.y, 0);
+    dinoShadow.position.set(dino.x, 0.03, 0);
+    const lift = Math.max(0.4, 1 - dino.y / 4);
+    dinoShadow.scale.set(m.w * 0.7 * lift, m.d * 0.6 * lift, 1);
+    if (state.mode === "over") {
+      r.rotation.z += (1.35 - r.rotation.z) * Math.min(1, dt * 8);
+      r.position.y += (0.4 - r.position.y) * Math.min(1, dt * 8);
+      for (const l of m.legs) l.rotation.x *= 0.9;
+    } else {
+      const running = state.mode === "playing" && onGround();
+      const sp = state.mode === "playing" ? 8 + state.speed * 0.45 : 3;
+      m.legs.forEach((l, i) => {
+        l.rotation.x = running ? Math.sin(state.t * sp + (i % 2) * Math.PI) * 0.7 : (onGround() ? 0 : (i % 2 ? 0.5 : -0.4));
+      });
+      if (m.tail) m.tail.rotation.y = Math.sin(state.t * (running ? sp / 2 : 2)) * 0.18;
+      if (m.band) m.band.rotation.y = Math.sin(state.t * 9) * 0.25;
+      const sy = ducking() ? m.duckH / m.h : 1;
+      r.scale.y += (sy - r.scale.y) * Math.min(1, dt * 20);
+      r.scale.z += ((ducking() ? 1.15 : 1) - r.scale.z) * Math.min(1, dt * 20);
+      r.position.y = running ? Math.abs(Math.sin(state.t * sp)) * 0.06 : (state.mode === "intro" ? Math.sin(state.t * 2) * 0.03 : 0);
+      r.rotation.z = (dino.lane * LANE - dino.x) * -0.08;
+      r.rotation.x = state.mode === "playing" && !onGround() ? -dino.vy * 0.012 : 0;
+    }
+
+    // Jour / nuit
+    const t = state.nightT;
+    scene.background.copy(DAY.sky).lerp(NIGHT.sky, t);
+    scene.fog.color.copy(scene.background);
+    hemi.color.copy(DAY.hemi).lerp(NIGHT.hemi, t);
+    hemi.intensity = DAY.hemiI + (NIGHT.hemiI - DAY.hemiI) * t;
+    sun.intensity = DAY.sun + (NIGHT.sun - DAY.sun) * t;
+    sunDisc.material.opacity = 1 - t;
+    moonDisc.material.opacity = t;
+    stars.material.opacity = t;
+    stage.style.background = "#" + scene.background.getHexString();
+
+    // Caméra derrière le dino
+    if (state.shake > 0) state.shake -= dt;
+    const sh = state.shake > 0 ? (Math.random() - 0.5) * state.shake * 0.6 : 0;
+    const camH = 3.3 + Math.min(m.h, 3.2) * 0.35;
+    camera.position.x += (dino.x * 0.65 - camera.position.x) * Math.min(1, dt * 6);
+    camera.position.y = camH + dino.y * 0.35 + sh;
+    camera.position.z = 7.2;
+    camera.lookAt(dino.x * 0.8 + sh, 1.3 + dino.y * 0.3, -8);
+  }
+
+  function gameOver() {
+    state.mode = "over";
+    state.deadAt = performance.now();
+    state.shake = 0.35;
+    dino.duckTimer = 0;
+    beep(180, 0.25, "sawtooth", 0.06);
+    if (state.score > hi) { hi = Math.floor(state.score); try { localStorage.setItem("dino3d-hi", String(hi)); } catch (e) {} showHi(); }
+    showMessage();
+  }
+
+  // ---------- Boucle ----------
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w / h < 1.2 ? 72 : 60;
+    camera.updateProjectionMatrix();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  window.addEventListener("resize", resize);
+
+  // ---------- Contrôles ----------
+  const JUMP = ["Space", "ArrowUp", "KeyW"], DUCK = ["ArrowDown", "KeyS"];
+  window.addEventListener("keydown", e => {
+    if (JUMP.includes(e.code)) { e.preventDefault(); if (!e.repeat) startOrJump(); }
+    else if (DUCK.includes(e.code)) { e.preventDefault(); keys.duck = true; if (!onGround()) dino.vy = Math.min(dino.vy, -8); }
+    else if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); if (!e.repeat) move(-1); }
+    else if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); if (!e.repeat) move(1); }
+  });
+  window.addEventListener("keyup", e => {
+    if (JUMP.includes(e.code)) e.preventDefault();
+    if (DUCK.includes(e.code)) keys.duck = false;
+  });
+
+  // Toucher : appui = sauter, glisser = couloir / saut / baisser
+  let touchStart = null;
+  stage.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    stage.focus({ preventScroll: true });
+    touchStart = { x: e.clientX, y: e.clientY, done: false };
+  });
+  stage.addEventListener("pointermove", e => {
+    if (!touchStart || touchStart.done) return;
+    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    if (Math.hypot(dx, dy) < 28) return;
+    touchStart.done = true;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1);
+    else if (dy < 0) startOrJump();
+    else duckTap();
+  });
+  stage.addEventListener("pointerup", () => {
+    if (touchStart && !touchStart.done) startOrJump();
+    touchStart = null;
+  });
+  stage.addEventListener("pointercancel", () => { touchStart = null; });
+
+  const press = (id, fn) => {
+    const el = document.getElementById(id);
+    el.addEventListener("pointerdown", e => { e.preventDefault(); fn(); });
+    el.addEventListener("contextmenu", e => e.preventDefault());
+  };
+  press("btn-left", () => move(-1));
+  press("btn-right", () => move(1));
+  press("btn-jump", startOrJump);
+  press("btn-duck", () => { if (state.mode === "playing") duckTap(); });
+
+  // ---------- Départ ----------
+  reset("intro");
+  choose(current);
+  camera.position.set(0, 4, 7.2);
+  resize();
+  requestAnimationFrame(t => { last = t; loop(t); });
+})();
+</script>
