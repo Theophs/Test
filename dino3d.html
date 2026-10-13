@@ -148,15 +148,81 @@
     border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
     box-shadow: inset -2px -2px 0 #d99a00, 0 2px 0 rgba(20, 30, 60, 0.3);
   }
-  .shield-ind {
-    font-size: clamp(7px, 1.5vw, 9px);
-    color: #0b3550;
-    background: #8fe0ff;
+  .hud-left .eggs-row { display: flex; align-items: center; gap: 8px; }
+  .hud-left { flex-direction: column; align-items: flex-start; }
+  .powers { display: flex; flex-wrap: wrap; gap: 4px; max-width: 60vw; }
+  .chip {
+    font-size: clamp(6px, 1.4vw, 8px);
     border-radius: 4px;
     padding: 4px 6px;
     text-shadow: none;
+    color: #1d2230;
   }
-  .shield-ind[hidden] { display: none; }
+  .chip.turbo { background: #ffb347; }
+  .chip.magnet { background: #ff8a80; }
+  .chip.x2 { background: #ffe14d; }
+  .chip.shield { background: #8fe0ff; }
+  .revive {
+    pointer-events: auto;
+    font-family: var(--pixel);
+    font-size: clamp(8px, 1.8vw, 11px);
+    color: #3a2400;
+    background: #ffd34d;
+    border: none;
+    border-bottom: 3px solid #c99a00;
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-shadow: none;
+  }
+  .revive[hidden] { display: none; }
+  .revive:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+  .shop-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .shop-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .shop-head h2 {
+    font-family: var(--pixel);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+  .bank { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .bank #bank { font-family: var(--pixel); font-size: 11px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .shop {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  .shop-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    min-width: 0;
+  }
+  .shop-item h3 { font-family: var(--pixel); font-size: 9px; font-weight: 400; margin: 0; line-height: 1.4; }
+  .shop-item p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+  .shop-item .status { color: var(--ink); font-size: 12px; flex: 1; }
+  .buy {
+    font-family: var(--pixel);
+    font-size: 8px;
+    color: var(--ink);
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 9px 6px;
+    cursor: pointer;
+  }
+  .buy.priced:not(:disabled) { background: #ffd34d; border-color: #e0b52c; color: #3a2400; }
+  .buy:disabled { cursor: default; opacity: 0.55; }
+  .buy:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .shop-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 65ch; }
   .toast {
     position: absolute;
     left: 50%;
@@ -247,7 +313,7 @@
 
 <main>
   <h1>Course du Dino 3D</h1>
-  <p class="lede">Ton dino court dans le désert et tu le vois de dos. Change de couloir, saute et baisse-toi pour éviter cactus, os géants, rochers qui roulent, mares de lave, arches et météores. Ramasse les œufs dorés pour gagner des points, et attrape le cristal bleu pour avoir un bouclier.</p>
+  <p class="lede">Ton dino court dans le désert et tu le vois de dos. Change de couloir, saute et baisse-toi. Tous les 2000 points tu changes de zone : désert, jungle, glacier puis volcan, et ça va de plus en plus vite. Ramasse les œufs dorés et dépense-les dans la boutique, sous le jeu.</p>
 
   <section class="picker" aria-labelledby="pick-title">
     <h2 id="pick-title">Choisis ton dino</h2>
@@ -256,13 +322,17 @@
 
   <div class="stage" id="stage" tabindex="0" aria-label="Jeu du dinosaure en 3D. Flèches gauche et droite pour changer de couloir, espace pour sauter, flèche bas pour se baisser.">
     <div class="loading" id="loading">Chargement de la 3D…</div>
-    <div class="hud-left"><span class="egg" aria-hidden="true"></span><span id="eggs">0</span><span class="shield-ind" id="shield-ind" hidden>BOUCLIER</span></div>
+    <div class="hud-left">
+      <div class="eggs-row"><span class="egg" aria-hidden="true"></span><span id="eggs">0</span></div>
+      <div class="powers" id="powers"></div>
+    </div>
     <div class="hud"><span class="hi" id="hi"></span><span id="score">00000</span></div>
     <div class="toast" id="toast" role="status"></div>
     <div class="msg" id="msg">
       <p class="big" id="msg-title">PRET ?</p>
       <p class="extra" id="msg-extra"></p>
       <p class="sub" id="msg-sub">ESPACE OU TOUCHE POUR JOUER</p>
+      <button class="revive" id="revive" type="button" hidden>CONTINUER</button>
     </div>
   </div>
 
@@ -271,6 +341,7 @@
     <li><kbd>Espace</kbd><kbd class="arrow">↑</kbd>sauter</li>
     <li><kbd class="arrow">↓</kbd>se baisser</li>
     <li><kbd>P</kbd>pause</li>
+    <li><kbd>C</kbd>continuer après un game over</li>
   </ul>
   <p class="touch-hint">Glisse le doigt sur le jeu : à gauche ou à droite pour changer de couloir, vers le haut pour sauter, vers le bas pour te baisser.</p>
   <div class="touch">
@@ -279,6 +350,15 @@
     <button id="btn-duck" type="button">Baisser</button>
     <button id="btn-right" type="button" aria-label="Couloir de droite">▶</button>
   </div>
+
+  <section class="shop-wrap" aria-labelledby="shop-title">
+    <div class="shop-head">
+      <h2 id="shop-title">Boutique des œufs</h2>
+      <span class="bank"><span class="egg" aria-hidden="true"></span><span id="bank">0</span> œufs en réserve</span>
+    </div>
+    <div class="shop" id="shop"></div>
+    <p class="shop-note">Chaque œuf ramassé va dans ta réserve. Quand tu perds, tu peux aussi payer des œufs pour continuer la partie : 30, puis 60, puis 120…</p>
+  </section>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -307,7 +387,7 @@
   // ---------- Briques 3D ----------
   const mats = new Map();
   const mat = c => {
-    if (!mats.has(c)) mats.set(c, new THREE.MeshLambertMaterial({ color: c }));
+    if (!mats.has(c)) { const m = new THREE.MeshLambertMaterial({ color: c }); m.userData.shared = true; mats.set(c, m); }
     return mats.get(c);
   };
   function box(parent, w, h, d, color, x, y, z, rx = 0, ry = 0, rz = 0) {
@@ -484,6 +564,12 @@
     },
   };
 
+  // Version dorée d'un dino (achetée avec les œufs)
+  const goldify = d => Object.assign({}, d, {
+    body: "#f2c230", belly: "#fff0a8", eye: "#3a2a05",
+    plate: d.plate && "#fff3b0", frill: d.frill && "#ffd84d", horn: d.horn && "#fffbe6",
+  });
+
   function buildDino(d) {
     const root = new THREE.Group();
     const parts = BUILD[d.species](d, root);
@@ -581,14 +667,14 @@
     const c = document.createElement("canvas");
     c.width = c.height = 128;
     const x = c.getContext("2d");
-    x.fillStyle = track ? "#e2b878" : "#ecc98c";
+    x.fillStyle = track ? "#f4f4f4" : "#ffffff";
     x.fillRect(0, 0, 128, 128);
     for (let i = 0; i < 90; i++) {
-      x.fillStyle = Math.random() < 0.5 ? "#d4a868" : "#f3dcaa";
+      x.fillStyle = Math.random() < 0.5 ? "#dcdcdc" : "#f0f0f0";
       x.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 3, 2);
     }
     if (track) {
-      x.fillStyle = "#c99a5a";
+      x.fillStyle = "#cfcfcf";
       for (const lx of [128 / 3, 256 / 3]) for (let y = 0; y < 128; y += 32) x.fillRect(lx - 1.5, y, 3, 18);
     }
     const t = new THREE.CanvasTexture(c);
@@ -912,6 +998,150 @@
   scene.fog.near = 45;
   scene.fog.far = 150;
 
+  // ---------- Zones ----------
+  const BIOMES = [
+    { id: "desert", name: "DESERT", ground: "#ecc98c", track: "#e2b878", sky: "#9fd8ff" },
+    { id: "jungle", name: "JUNGLE", ground: "#86c06a", track: "#b08a5a", sky: "#a9e3d0" },
+    { id: "ice", name: "GLACIER", ground: "#eef6ff", track: "#c7e0f2", sky: "#cfe6ff" },
+    { id: "lava", name: "VOLCAN", ground: "#6a5050", track: "#4a3a3a", sky: "#f2a27e" },
+  ];
+  const biomeCol = {
+    ground: new THREE.Color(BIOMES[0].ground),
+    track: new THREE.Color(BIOMES[0].track),
+    sky: new THREE.Color(BIOMES[0].sky),
+  };
+  const tmpC = new THREE.Color();
+  function updateBiomeColors(b, dt) {
+    const k = Math.min(1, dt * 0.8);
+    biomeCol.ground.lerp(tmpC.set(b.ground), k);
+    biomeCol.track.lerp(tmpC.set(b.track), k);
+    biomeCol.sky.lerp(tmpC.set(b.sky), k);
+    ground.material.color.copy(biomeCol.ground);
+    track.material.color.copy(biomeCol.track);
+  }
+  ground.material.color.copy(biomeCol.ground);
+  track.material.color.copy(biomeCol.track);
+
+  // Décor de chaque zone
+  function makeTree() {
+    const g = new THREE.Group();
+    box(g, 0.4, 2.2, 0.4, "#7a5230", 0, 1.1, 0);
+    box(g, 1.8, 1.0, 1.8, "#3f9a3a", 0, 2.5, 0);
+    box(g, 1.2, 0.8, 1.2, "#55b24a", 0.1, 3.2, 0.1);
+    return g;
+  }
+  function makeBush() {
+    const g = new THREE.Group();
+    box(g, 1.2, 0.7, 1.0, "#4fa844", 0, 0.35, 0);
+    box(g, 0.8, 0.5, 0.8, "#62bd55", 0.3, 0.8, 0);
+    box(g, 0.14, 0.14, 0.14, "#ff5fa2", -0.3, 0.75, -0.45);
+    return g;
+  }
+  function makePine() {
+    const g = new THREE.Group();
+    box(g, 0.3, 0.6, 0.3, "#6b4a2e", 0, 0.3, 0);
+    cone(g, 1.0, 1.6, "#2f7d5a", 0, 1.2, 0);
+    cone(g, 0.75, 1.3, "#3b9470", 0, 2.0, 0);
+    cone(g, 0.42, 0.6, "#ffffff", 0, 2.75, 0);
+    return g;
+  }
+  function makeCrystal() {
+    const g = new THREE.Group();
+    cone(g, 0.4, 2.0, "#9fd9ff", 0, 1, 0);
+    cone(g, 0.25, 1.2, "#c7ecff", 0.4, 0.6, 0.1, 0, 0, -0.4);
+    cone(g, 0.25, 1.0, "#7cc8f2", -0.35, 0.5, 0, 0, 0, 0.4);
+    return g;
+  }
+  const glowMat = new THREE.MeshBasicMaterial({ color: "#ff5a1a" });
+  glowMat.userData.shared = true;
+  function makeLavaRock() {
+    const g = new THREE.Group();
+    const s = 0.7 + Math.random();
+    box(g, s * 1.3, s * 0.8, s, "#3a2c2c", 0, s * 0.4, 0, 0, Math.random());
+    const crack = new THREE.Mesh(new THREE.BoxGeometry(s * 1.32, 0.08, s * 0.3), glowMat);
+    crack.position.y = s * 0.45;
+    g.add(crack);
+    return g;
+  }
+  function makeProp(id) {
+    if (id === "jungle") return Math.random() < 0.6 ? makeTree() : makeBush();
+    if (id === "ice") return Math.random() < 0.6 ? makePine() : makeCrystal();
+    if (id === "lava") return Math.random() < 0.6 ? makeLavaRock() : makeRock();
+    return Math.random() < 0.55 ? makeCactus(Math.random() < 0.5).group : makeRock();
+  }
+
+  // Obstacle de base de chaque zone
+  function makeStump(big) {
+    const g = new THREE.Group();
+    const h = big ? 1.55 : 1.05, r = big ? 0.45 : 0.36;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, h, 10), mat("#8a5a32"));
+    trunk.position.y = h / 2;
+    g.add(trunk);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 0.92, 0.04, 10), mat("#d9a868"));
+    top.position.y = h + 0.01;
+    g.add(top);
+    box(g, 0.4, 0.3, 0.3, "#4fa844", r, h * 0.6, 0);
+    blob(g, 0.5);
+    return { group: g, hw: 0.34, hd: 0.34, y0: 0, y1: h };
+  }
+  function makeIceSpike(big) {
+    const g = new THREE.Group();
+    const h = big ? 1.55 : 1.05;
+    cone(g, big ? 0.5 : 0.4, h, "#a8e0ff", 0, h / 2, 0);
+    cone(g, 0.22, h * 0.6, "#d8f2ff", 0.28, h * 0.3, 0.05);
+    cone(g, 0.2, h * 0.5, "#86cdf5", -0.26, h * 0.25, 0);
+    blob(g, 0.5);
+    return { group: g, hw: 0.34, hd: 0.34, y0: 0, y1: h };
+  }
+  function makeObsidian(big) {
+    const g = new THREE.Group();
+    const h = big ? 1.55 : 1.05;
+    box(g, 0.5, h, 0.5, "#2a2026", 0, h / 2, 0, 0, 0.4);
+    box(g, 0.3, h * 0.6, 0.3, "#3d2b33", 0.28, h * 0.3, 0.1, 0, 0.2);
+    const vein = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.54), glowMat);
+    vein.position.y = h * 0.62;
+    vein.rotation.y = 0.4;
+    g.add(vein);
+    blob(g, 0.45);
+    return { group: g, hw: 0.32, hd: 0.32, y0: 0, y1: h };
+  }
+
+  // Bonus spéciaux
+  function makeStar() {
+    const g = new THREE.Group();
+    const m = new THREE.Group();
+    const sMat = new THREE.MeshLambertMaterial({ color: "#ffe14d", emissive: "#8a6a00", emissiveIntensity: 0.7, flatShading: true });
+    const a = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), sMat);
+    const b = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), sMat);
+    b.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+    m.add(a, b);
+    m.position.y = 1;
+    g.add(m);
+    blob(g, 0.4);
+    return { group: g, kind: "star", mesh: m, y: 1 };
+  }
+  function makeMagnet() {
+    const g = new THREE.Group();
+    const m = new THREE.Group();
+    m.add(new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.11, 8, 16, Math.PI), mat("#e53935")));
+    box(m, 0.22, 0.24, 0.22, "#d8dde6", 0.32, -0.1, 0);
+    box(m, 0.22, 0.24, 0.22, "#d8dde6", -0.32, -0.1, 0);
+    m.position.y = 1;
+    g.add(m);
+    blob(g, 0.4);
+    return { group: g, kind: "magnet", mesh: m, y: 1 };
+  }
+
+  // Libère la mémoire d'un objet retiré de la scène
+  function discard(g) {
+    scene.remove(g);
+    g.traverse(n => {
+      if (!n.isMesh) return;
+      if (n.geometry !== shadowGeo && n.geometry !== eggGeo && n.geometry !== partGeo) n.geometry.dispose();
+      if (n.material !== shadowMat && n.material !== eggMat && !n.material.userData.shared) n.material.dispose();
+    });
+  }
+
   // ---------- Le dino du joueur ----------
   let model = null, dinoShadow = null;
   const player = new THREE.Group();
@@ -923,7 +1153,7 @@
     cards.forEach((b, i) => b.setAttribute("aria-pressed", DINOS[i] === d ? "true" : "false"));
     try { localStorage.setItem("dino3d-choice", d.id); } catch (e) {}
     if (model) player.remove(model.root);
-    model = buildDino(d);
+    model = buildDino(bank.gold && bank.goldOn ? goldify(d) : d);
     player.add(model.root);
     dinoShadow.scale.set(model.w * 0.9, model.d * 0.8, 1);
     if (state && state.mode !== "playing") showMessage();
@@ -946,7 +1176,8 @@
   // ---------- HUD ----------
   const $ = id => document.getElementById(id);
   const elScore = $("score"), elHi = $("hi"), elMsg = $("msg"), elTitle = $("msg-title"), elSub = $("msg-sub");
-  const elExtra = $("msg-extra"), elEggs = $("eggs"), elShield = $("shield-ind"), elToast = $("toast");
+  const elExtra = $("msg-extra"), elEggs = $("eggs"), elToast = $("toast");
+  const elPowers = $("powers"), elRevive = $("revive"), elShop = $("shop"), elBank = $("bank");
   const pad = n => String(Math.floor(n)).padStart(5, "0");
   let hi = 0;
   try { hi = parseInt(localStorage.getItem("dino3d-hi") || "0", 10) || 0; } catch (e) {}
@@ -960,9 +1191,86 @@
     elToast.classList.add("show");
   }
 
+  // ---------- Réserve d'œufs et boutique ----------
+  const bank = { eggs: 0, dj: false, magnet: 0, shield: 0, turbo: 0, gold: false, goldOn: false };
+  try { Object.assign(bank, JSON.parse(localStorage.getItem("dino3d-bank") || "{}")); } catch (e) {}
+  const saveBank = () => { try { localStorage.setItem("dino3d-bank", JSON.stringify(bank)); } catch (e) {} };
+  const MAGNET_TIME = [0, 6, 9, 12];
+  const reviveCost = () => 30 * Math.pow(2, state.revives);
+
+  const SHOP = [
+    { id: "dj", name: "Double saut", desc: "Appuie encore sur sauter en l'air pour ressauter une fois.", kind: "perm", price: 150 },
+    { id: "magnet", name: "Aimant à œufs", desc: "Des aimants apparaissent pendant la course et attirent tous les œufs.", kind: "level", prices: [100, 250, 500] },
+    { id: "shield", name: "Bouclier de départ", desc: "Tu commences la prochaine partie avec un bouclier.", kind: "stock", price: 25 },
+    { id: "turbo", name: "Turbo de départ", desc: "5 secondes de super vitesse au début : tu casses tout sur ton passage.", kind: "stock", price: 50 },
+    { id: "gold", name: "Dinos en or", desc: "Tous tes dinos peuvent devenir dorés. Le grand trésor !", kind: "toggle", price: 1000 },
+  ];
+
+  function shopState(it) {
+    if (it.kind === "perm") return bank[it.id] ? { status: "Acheté", label: "Acheté", cost: null } : { status: "Pas encore acheté", label: "Acheter", cost: it.price };
+    if (it.kind === "level") {
+      const lvl = bank.magnet;
+      const status = lvl ? "Niveau " + lvl + "/3 · dure " + MAGNET_TIME[lvl] + " s" : "Pas encore acheté";
+      return lvl >= 3 ? { status, label: "Niveau max", cost: null } : { status, label: lvl ? "Améliorer" : "Acheter", cost: it.prices[lvl] };
+    }
+    if (it.kind === "stock") {
+      const n = bank[it.id];
+      return { status: n ? "En réserve : " + n + " (servira au prochain départ)" : "Aucun en réserve", label: "Acheter", cost: it.price };
+    }
+    if (!bank.gold) return { status: "Pas encore acheté", label: "Acheter", cost: it.price };
+    return { status: bank.goldOn ? "Activé" : "Désactivé", label: bank.goldOn ? "Désactiver" : "Activer", cost: null, toggle: true };
+  }
+
+  function renderShop() {
+    elBank.textContent = String(bank.eggs);
+    const busy = state && state.mode === "playing" && !state.paused;
+    elShop.textContent = "";
+    for (const it of SHOP) {
+      const st = shopState(it);
+      const card = document.createElement("div");
+      card.className = "shop-item";
+      const h = document.createElement("h3");
+      h.textContent = it.name;
+      const p = document.createElement("p");
+      p.textContent = it.desc;
+      const s = document.createElement("p");
+      s.className = "status";
+      s.textContent = st.status;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.id = "shop-" + it.id;
+      b.className = "buy";
+      b.textContent = st.cost !== null ? st.label + " · " + st.cost : st.label;
+      if (st.cost !== null) b.classList.add("priced");
+      b.disabled = busy || (st.cost === null && !st.toggle) || (st.cost !== null && bank.eggs < st.cost);
+      b.addEventListener("click", () => buy(it));
+      card.append(h, p, s, b);
+      elShop.append(card);
+    }
+  }
+
+  function buy(it) {
+    const st = shopState(it);
+    if (st.toggle) {
+      bank.goldOn = !bank.goldOn;
+      choose(current);
+    } else {
+      if (st.cost === null || bank.eggs < st.cost) return;
+      bank.eggs -= st.cost;
+      if (it.kind === "perm") bank[it.id] = true;
+      else if (it.kind === "level") bank.magnet++;
+      else if (it.kind === "stock") bank[it.id]++;
+      else { bank.gold = true; bank.goldOn = true; choose(current); }
+      beep(880, 0.08, "triangle"); setTimeout(() => beep(1320, 0.12, "triangle"), 90);
+    }
+    saveBank();
+    renderShop();
+  }
+
   function showMessage() {
     elMsg.hidden = state.mode === "playing" && !state.paused;
     elExtra.textContent = "";
+    elRevive.hidden = true;
     if (state.paused) {
       elTitle.textContent = "PAUSE";
       elSub.textContent = "P, ECHAP OU ESPACE POUR CONTINUER";
@@ -971,8 +1279,32 @@
       elSub.textContent = "ESPACE OU TOUCHE POUR JOUER";
     } else if (state.mode === "over") {
       elTitle.textContent = "GAME OVER";
-      elExtra.textContent = "SCORE " + pad(state.score) + "  ·  OEUFS " + state.eggs + (state.record ? "  ·  NOUVEAU RECORD !" : "");
+      elExtra.textContent = "SCORE " + pad(state.score) + "  ·  +" + state.eggs + " OEUFS" + (state.record ? "  ·  NOUVEAU RECORD !" : "");
       elSub.textContent = "ESPACE OU TOUCHE POUR REJOUER";
+      const cost = reviveCost();
+      if (bank.eggs >= cost) {
+        elRevive.hidden = false;
+        elRevive.textContent = "CONTINUER · " + cost + " OEUFS (C)";
+      }
+    }
+  }
+
+  let lastPowers = "";
+  function renderPowers() {
+    const chips = [];
+    if (state.turbo > 0) chips.push(["turbo", "TURBO " + Math.ceil(state.turbo)]);
+    if (state.magnet > 0) chips.push(["magnet", "AIMANT " + Math.ceil(state.magnet)]);
+    if (state.x2 > 0) chips.push(["x2", "X2 " + Math.ceil(state.x2)]);
+    if (state.shield) chips.push(["shield", "BOUCLIER"]);
+    const key = chips.map(c => c.join(":")).join("|");
+    if (key === lastPowers) return;
+    lastPowers = key;
+    elPowers.textContent = "";
+    for (const [cls, text] of chips) {
+      const s = document.createElement("span");
+      s.className = "chip " + cls;
+      s.textContent = text;
+      elPowers.append(s);
     }
   }
 
@@ -983,21 +1315,32 @@
   const seen = new Set();
 
   function reset(mode) {
-    for (const o of obstacles) scene.remove(o.group);
-    for (const p of pickups) scene.remove(p.group);
+    for (const o of obstacles) discard(o.group);
+    for (const p of pickups) discard(p.group);
     obstacles = [];
     pickups = [];
     state = {
       mode, speed: 13, score: 0, dist: 0, lastHundred: 0, nextSpawn: 30, t: 0, deadAt: 0,
       night: false, nightT: state ? state.nightT : 0, nightLevel: 0, nightUntil: 0, shake: 0,
-      eggs: 0, shield: false, inv: 0, nextShieldAt: 700, paused: false, record: false, dustT: 0,
+      eggs: 0, shield: false, inv: 0, nextShieldAt: 900, paused: false, record: false, dustT: 0,
+      biome: 0, revives: 0, turbo: 0, magnet: 0, x2: 0, usedDouble: false,
+      eventKind: null, eventT: 0, eventTick: 0, nextEventAt: 2500,
     };
     Object.assign(dino, { lane: 0, x: 0, y: 0, vy: 0, duckTimer: 0 });
-    if (model) { model.root.rotation.set(0, 0, 0); model.root.visible = true; }
+    if (model) { model.root.rotation.set(0, 0, 0); model.root.position.y = 0; model.root.visible = true; }
     elScore.textContent = pad(0);
     elEggs.textContent = "0";
-    elShield.hidden = true;
+    renderPowers();
     showMessage();
+    renderShop();
+  }
+
+  // Bonus achetés, utilisés au début de chaque partie
+  function beginRun() {
+    if (bank.shield > 0) { bank.shield--; state.shield = true; }
+    if (bank.turbo > 0) { bank.turbo--; state.turbo = 5; toast("TURBO !"); }
+    saveBank();
+    renderShop();
   }
 
   const onGround = () => dino.y <= 0.0001;
@@ -1007,22 +1350,29 @@
     if (state.mode !== "playing") return;
     state.paused = !state.paused;
     showMessage();
+    renderShop();
   }
   function startOrJump() {
     if (state.paused) { togglePause(); return; }
-    if (state.mode === "intro") { state.mode = "playing"; showMessage(); jump(); return; }
+    if (state.mode === "intro") { state.mode = "playing"; showMessage(); beginRun(); jump(); return; }
     if (state.mode === "over") {
-      if (performance.now() - state.deadAt > 500) reset("playing");
+      if (performance.now() - state.deadAt > 500) { reset("playing"); beginRun(); }
       return;
     }
     jump();
   }
   function jump() {
-    if (state.mode === "playing" && onGround()) {
+    if (state.mode !== "playing") return;
+    if (onGround()) {
       dino.vy = 11;
       dino.duckTimer = 0;
       beep(660, 0.08);
       burst(dino.x, 0.1, 0.3, "#e8c48a", 5, 2);
+    } else if (bank.dj && !state.usedDouble) {
+      state.usedDouble = true;
+      dino.vy = 10;
+      beep(990, 0.08);
+      burst(dino.x, dino.y + 0.3, 0.3, "#9be3ff", 8, 3);
     }
   }
   function duckTap() {
@@ -1040,6 +1390,27 @@
     const nl = Math.max(-1, Math.min(1, dino.lane + dir));
     if (nl !== dino.lane) { dino.lane = nl; beep(440, 0.04, "triangle", 0.04); }
   }
+  function revive() {
+    if (state.mode !== "over") return;
+    const cost = reviveCost();
+    if (bank.eggs < cost) return;
+    bank.eggs -= cost;
+    saveBank();
+    state.revives++;
+    state.mode = "playing";
+    state.inv = 2;
+    obstacles = obstacles.filter(o => {
+      if (o.group.position.z > -45) { discard(o.group); return false; }
+      return true;
+    });
+    dino.y = 0; dino.vy = 0;
+    model.root.rotation.set(0, 0, 0);
+    model.root.position.y = 0;
+    beep(520, 0.08, "triangle"); setTimeout(() => beep(880, 0.12, "triangle"), 90);
+    toast("C'EST REPARTI !");
+    showMessage();
+    renderShop();
+  }
 
   // ---------- Obstacles et bonus ----------
   const SPAWN_Z = -110;
@@ -1056,59 +1427,127 @@
   function eggLine(lane, y, n, z0) {
     for (let i = 0; i < n; i++) addPickup(makeEgg(y), lane, z0 - i * 2.6);
   }
-  function eggArc(lane) {
-    for (let i = 0; i < 5; i++) addPickup(makeEgg(0.7 + 1.2 * Math.sin(Math.PI * i / 4)), lane, SPAWN_Z + 5.2 - i * 2.6);
+  function eggArc(lane, z = SPAWN_Z) {
+    for (let i = 0; i < 5; i++) addPickup(makeEgg(0.7 + 1.2 * Math.sin(Math.PI * i / 4)), lane, z + 5.2 - i * 2.6);
   }
   const big = () => Math.random() < 0.45;
+  const anyLane = () => [-1, 0, 1][Math.floor(Math.random() * 3)];
+  function makeBasic(isBig) {
+    const id = BIOMES[state.biome].id;
+    if (id === "jungle") return makeStump(isBig);
+    if (id === "ice") return makeIceSpike(isBig);
+    if (id === "lava") return makeObsidian(isBig);
+    return makeCactus(isBig);
+  }
 
   const PATTERNS = [
-    { id: "cactus1", min: 0, w: 3, run: l => { addObstacle(makeCactus(big()), l[0]); return [l[0]]; } },
-    { id: "cactus2", min: 0, w: 3, run: l => { addObstacle(makeCactus(big()), l[0]); addObstacle(makeCactus(big()), l[1]); return [l[0], l[1]]; } },
-    { id: "row", min: 150, w: 1.1, run: () => { for (const x of [-1, 0, 1]) addObstacle(makeCactus(false), x); eggArc(0); return "all"; } },
-    { id: "bone", min: 100, w: 1.4, news: "OS GEANT : SAUTE !", run: () => { addObstacle(makeBone(), 0); eggArc([-1, 0, 1][Math.floor(Math.random() * 3)]); return "all"; } },
-    { id: "boulder", min: 200, w: 2, news: "ROCHERS QUI ROULENT !", run: l => {
+    { id: "single", min: 0, w: s => Math.max(0.5, 3 - s / 2500), run: l => { addObstacle(makeBasic(big()), l[0]); return [l[0]]; } },
+    { id: "double", min: 0, w: () => 3, run: l => { addObstacle(makeBasic(big()), l[0]); addObstacle(makeBasic(big()), l[1]); return [l[0], l[1]]; } },
+    { id: "row", min: 150, w: () => 1.1, run: () => { for (const x of [-1, 0, 1]) addObstacle(makeBasic(false), x); eggArc(0); return "all"; } },
+    { id: "bone", min: 100, w: () => 1.4, news: "OS GEANT : SAUTE !", run: () => { addObstacle(makeBone(), 0); eggArc(anyLane()); return "all"; } },
+    { id: "boulder", min: 200, w: () => 2, news: "ROCHERS QUI ROULENT !", run: l => {
       addObstacle(makeBoulder(), l[0]);
       if (state.score > 1200 && Math.random() < 0.4) { addObstacle(makeBoulder(), l[1], SPAWN_Z - 8); return [l[0], l[1]]; }
       return [l[0]];
     } },
-    { id: "ptero", min: 300, w: 2, news: "PTERODACTYLES : BAISSE-TOI !", run: l => {
+    { id: "ptero", min: 300, w: () => 2, news: "PTERODACTYLES : BAISSE-TOI !", run: l => {
       addObstacle(makePtero(), l[0]);
       if (state.score > 800 && Math.random() < 0.4) { addObstacle(makePtero(), l[1]); return [l[0], l[1]]; }
       return [l[0]];
     } },
-    { id: "lava", min: 400, w: 1.5, news: "MARES DE LAVE !", run: l => {
+    { id: "lava", min: 400, w: () => 1.5, news: "MARES DE LAVE !", run: l => {
       addObstacle(makeLava(), l[0]);
       if (Math.random() < 0.5) { addObstacle(makeLava(), l[1]); return [l[0], l[1]]; }
       return [l[0]];
     } },
-    { id: "tumble", min: 500, w: 1.2, news: "BOULES DU DESERT !", run: () => { addObstacle(makeTumble(), 0); return "all"; } },
-    { id: "arch", min: 650, w: 1.2, news: "ARCHES : BAISSE-TOI !", run: () => {
+    { id: "tumble", min: 500, w: () => 1.2, news: "BOULES QUI REBONDISSENT !", run: () => { addObstacle(makeTumble(), 0); return "all"; } },
+    { id: "arch", min: 650, w: () => 1.2, news: "ARCHES : BAISSE-TOI !", run: () => {
       addObstacle(makeArch(), 0);
-      eggLine([-1, 0, 1][Math.floor(Math.random() * 3)], 0.45, 3, SPAWN_Z + 2.6);
+      eggLine(anyLane(), 0.45, 3, SPAWN_Z + 2.6);
       return "all";
     } },
-    { id: "meteor", min: 800, w: 1.5, news: "PLUIE DE METEORES !", run: l => {
+    { id: "meteor", min: 800, w: () => 1.5, news: "METEORES !", run: l => {
       addObstacle(makeMeteor(), l[0]);
       if (Math.random() < 0.5) { addObstacle(makeMeteor(), l[1], SPAWN_Z - 6); return [l[0], l[1]]; }
       return [l[0]];
+    } },
+    { id: "mixed", min: 1000, w: s => Math.min(2, s / 2000), news: "COMBO : LAVE, PTERO ET OBSTACLE !", run: l => {
+      addObstacle(makeLava(), l[0]);
+      addObstacle(makePtero(), l[1]);
+      addObstacle(makeBasic(true), l[2]);
+      return "all";
+    } },
+    { id: "slalom", min: 1200, w: s => Math.min(2.2, s / 2000), news: "SLALOM !", run: () => {
+      const gap = Math.max(12, state.speed * 0.7);
+      let free = anyLane();
+      for (let i = 0; i < 3; i++) {
+        if (i > 0) { const opts = [-1, 0, 1].filter(x => x !== free); free = opts[Math.floor(Math.random() * 2)]; }
+        for (const x of [-1, 0, 1]) if (x !== free) addObstacle(makeBasic(Math.random() < 0.3), x, SPAWN_Z - i * gap);
+        addPickup(makeEgg(0.55), free, SPAWN_Z - i * gap);
+      }
+      state.nextSpawn += gap * 2;
+      return "all";
+    } },
+    { id: "jumpduck", min: 1500, w: s => Math.min(1.6, s / 3000), news: "SAUTE PUIS BAISSE-TOI !", run: () => {
+      const gap = Math.max(16, state.speed);
+      addObstacle(makeBone(), 0);
+      addObstacle(makeArch(), 0, SPAWN_Z - gap);
+      state.nextSpawn += gap;
+      return "all";
+    } },
+    { id: "rush", min: 2000, w: s => Math.min(1.6, s / 3000), news: "AVALANCHE DE ROCHERS !", run: l => {
+      addObstacle(makeBoulder(), l[0]);
+      addObstacle(makeBoulder(), l[1], SPAWN_Z - 11);
+      addObstacle(makeBoulder(), l[2], SPAWN_Z - 22);
+      state.nextSpawn += 22;
+      return "all";
     } },
   ];
 
   function spawn() {
     const avail = PATTERNS.filter(p => state.score >= p.min);
-    let r = Math.random() * avail.reduce((s, p) => s + p.w, 0);
+    let r = Math.random() * avail.reduce((s, p) => s + p.w(state.score), 0);
     let pat = avail[0];
-    for (const p of avail) { r -= p.w; if (r <= 0) { pat = p; break; } }
+    for (const p of avail) { r -= p.w(state.score); if (r <= 0) { pat = p; break; } }
     if (pat.news && !seen.has(pat.id)) { seen.add(pat.id); toast("NOUVEAU : " + pat.news); }
     const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
     const used = pat.run(lanes);
     if (used === "all") return;
     const free = [-1, 0, 1].filter(l => !used.includes(l));
+    const lane = free[Math.floor(Math.random() * free.length)];
     if (state.dist > state.nextShieldAt && !state.shield) {
-      state.nextShieldAt = state.dist + 1400;
-      addPickup(makeShield(), free[0], SPAWN_Z);
+      state.nextShieldAt = state.dist + 1500;
+      addPickup(makeShield(), lane, SPAWN_Z);
+    } else if (bank.magnet > 0 && state.magnet <= 0 && Math.random() < 0.09) {
+      addPickup(makeMagnet(), lane, SPAWN_Z);
+    } else if (state.score > 500 && state.x2 <= 0 && Math.random() < 0.06) {
+      addPickup(makeStar(), lane, SPAWN_Z);
     } else if (Math.random() < 0.6) {
-      eggLine(free[Math.floor(Math.random() * free.length)], 0.55, 5, SPAWN_Z + 5);
+      eggLine(lane, 0.55, 5, SPAWN_Z + 5);
+    }
+  }
+
+  // Événements spéciaux : vagues de météores ou de ptérodactyles
+  function runEvent(dt) {
+    state.eventT -= dt;
+    state.eventTick -= dt;
+    if (state.eventTick <= 0) {
+      const l = [-1, 0, 1].sort(() => Math.random() - 0.5);
+      if (state.eventKind === "meteor") {
+        state.eventTick = 0.6;
+        addObstacle(makeMeteor(), l[0]);
+      } else {
+        state.eventTick = 0.85;
+        addObstacle(makePtero(), l[0]);
+        if (Math.random() < 0.5) addObstacle(makePtero(), l[1]);
+        else addPickup(makeEgg(0.55), l[1], SPAWN_Z);
+      }
+    }
+    if (state.eventT <= 0) {
+      state.eventKind = null;
+      state.nextSpawn = 30;
+      toast("VAGUE TERMINEE ! +200");
+      state.score += 200;
     }
   }
 
@@ -1123,16 +1562,21 @@
     state.t += dt;
     const target = state.night ? 1 : 0;
     state.nightT += Math.sign(target - state.nightT) * Math.min(Math.abs(target - state.nightT), dt * 0.6);
+    updateBiomeColors(BIOMES[state.biome], dt);
 
     const m = model;
     let dz = 0;
     if (state.mode === "playing") {
-      state.speed = Math.min(34, state.speed + dt * 0.28);
-      dz = state.speed * dt;
+      state.speed = Math.min(52, state.speed + dt * (state.speed < 34 ? 0.28 : 0.06));
+      const boost = state.turbo > 0 ? 1.7 : 1;
+      dz = state.speed * boost * dt;
       state.dist += dz;
+      if (state.turbo > 0) { state.turbo -= dt; if (state.turbo <= 0) state.inv = 1; }
+      if (state.magnet > 0) state.magnet -= dt;
+      if (state.x2 > 0) state.x2 -= dt;
 
       // Score
-      state.score += dz * 0.6;
+      state.score += dz * 0.6 * (state.x2 > 0 ? 2 : 1);
       const hundreds = Math.floor(state.score / 100);
       if (hundreds > state.lastHundred) {
         state.lastHundred = hundreds;
@@ -1144,14 +1588,29 @@
       if (lvl > state.nightLevel) { state.nightLevel = lvl; state.night = true; state.nightUntil = state.score + 250; }
       if (state.night && state.score > state.nightUntil) state.night = false;
 
+      // Changement de zone tous les 2000 points
+      const biome = Math.floor(state.score / 2000) % BIOMES.length;
+      if (biome !== state.biome) {
+        state.biome = biome;
+        toast("ZONE : " + BIOMES[biome].name);
+        beep(660, 0.1, "triangle"); setTimeout(() => beep(990, 0.15, "triangle"), 120);
+      }
+
       // Défilement
       groundTex.offset.y += dz * 40 / 240;
       trackTex.offset.y += dz * 40 / 240;
-      for (const g of decor) {
+      for (let i = 0; i < decor.length; i++) {
+        const g = decor[i];
         g.position.z += dz;
         if (g.position.z > 12) {
-          g.position.z -= 140;
-          g.position.x = (g.position.x > 0 ? 1 : -1) * (5 + Math.random() * 18);
+          const side = g.position.x > 0 ? 1 : -1;
+          const n = makeProp(BIOMES[state.biome].id);
+          const s = 0.8 + Math.random() * 0.9;
+          n.scale.set(s, s, s);
+          n.position.set(side * (5 + Math.random() * 18), 0, g.position.z - 140);
+          discard(g);
+          scene.add(n);
+          decor[i] = n;
         }
       }
 
@@ -1162,18 +1621,31 @@
         const g = keys.duck || dino.duckTimer > 0 ? 75 : 30;
         dino.vy -= g * dt;
         dino.y = Math.max(0, dino.y + dino.vy * dt);
-        if (dino.y === 0) { dino.vy = 0; burst(dino.x, 0.1, 0.2, "#e8c48a", 7, 3); }
+        if (dino.y === 0) { dino.vy = 0; state.usedDouble = false; burst(dino.x, 0.1, 0.2, "#e8c48a", 7, 3); }
       }
       if (onGround()) {
         state.dustT -= dt;
         if (state.dustT <= 0) { state.dustT = 0.06; burst(dino.x + (Math.random() - 0.5) * m.w, 0.08, m.d * 0.3, "#e8c48a", 1, 1.2); }
       }
+      if (state.turbo > 0) burst(dino.x + (Math.random() - 0.5) * m.w, 0.4 + Math.random() * m.h * 0.6, m.d * 0.5, "#ff9f1c", 1, 1.5);
 
       // Apparitions
-      state.nextSpawn -= dz;
-      if (state.nextSpawn <= 0) {
-        spawn();
-        state.nextSpawn = Math.max(17, state.speed * (1.1 + Math.random() * 0.6));
+      if (!state.eventKind && state.score > state.nextEventAt) {
+        state.eventKind = Math.random() < 0.5 ? "meteor" : "ptero";
+        state.eventT = 7;
+        state.eventTick = 1;
+        state.nextEventAt = state.score + 2000 + Math.random() * 800;
+        toast(state.eventKind === "meteor" ? "ALERTE : PLUIE DE METEORES !" : "ALERTE : RUEE DE PTERODACTYLES !");
+        beep(300, 0.12, "sawtooth", 0.05); setTimeout(() => beep(300, 0.12, "sawtooth", 0.05), 200);
+      }
+      if (state.eventKind) runEvent(dt);
+      else {
+        state.nextSpawn -= dz;
+        if (state.nextSpawn <= 0) {
+          spawn();
+          const tight = Math.max(0.72, 1 - state.score / 25000);
+          state.nextSpawn = Math.max(15, state.speed * (1.1 + Math.random() * 0.6) * tight);
+        }
       }
 
       // Obstacles
@@ -1183,7 +1655,7 @@
         if (o.update) o.update(o, dt);
       }
       obstacles = obstacles.filter(o => {
-        if (o.group.position.z > 12) { scene.remove(o.group); return false; }
+        if (o.group.position.z > 12) { discard(o.group); return false; }
         return true;
       });
 
@@ -1191,52 +1663,76 @@
       const top = dino.y + (ducking() ? m.duckH : m.h) * 0.9;
 
       // Bonus
+      const mult = state.x2 > 0 ? 2 : 1;
       pickups = pickups.filter(p => {
-        p.group.position.z += dz;
-        p.mesh.rotation.y += dt * 3;
-        p.mesh.position.y = p.y + Math.sin(state.t * 4 + p.group.position.z * 0.3) * 0.08;
         const pp = p.group.position;
+        pp.z += dz;
+        if (p.kind === "egg" && state.magnet > 0 && pp.z > -40 && pp.z < 3) {
+          const k = Math.min(1, dt * 7);
+          pp.x += (dino.x - pp.x) * k;
+          pp.z += -pp.z * k;
+          p.y += (dino.y + 1 - p.y) * k;
+        }
+        p.mesh.rotation.y += dt * 3;
+        p.mesh.position.y = p.y + Math.sin(state.t * 4 + pp.z * 0.3) * 0.08;
         if (Math.abs(pp.x - dino.x) < 0.85 && Math.abs(pp.z) < 0.9 && p.y > dino.y - 0.3 && p.y < top + 0.3) {
-          scene.remove(p.group);
+          discard(p.group);
           if (p.kind === "egg") {
-            state.eggs++;
-            state.score += 25;
+            state.eggs += mult;
+            bank.eggs += mult;
+            state.score += 25 * mult;
             elEggs.textContent = String(state.eggs);
             beep(1250 + (state.eggs % 5) * 120, 0.06, "triangle", 0.05);
             burst(pp.x, p.y, 0, "#ffd34d", 5, 2.5);
-          } else {
+          } else if (p.kind === "shield") {
             state.shield = true;
             state.score += 50;
-            elShield.hidden = false;
             toast("BOUCLIER ACTIF !");
             beep(520, 0.08, "triangle"); setTimeout(() => beep(780, 0.12, "triangle"), 80);
             burst(pp.x, 1, 0, "#6fd3ff", 10, 3);
+          } else if (p.kind === "magnet") {
+            state.magnet = MAGNET_TIME[bank.magnet] || 6;
+            toast("AIMANT A OEUFS !");
+            beep(700, 0.08, "triangle"); setTimeout(() => beep(1050, 0.12, "triangle"), 80);
+            burst(pp.x, 1, 0, "#e53935", 10, 3);
+          } else {
+            state.x2 = 8;
+            toast("POINTS X2 !");
+            beep(880, 0.08, "triangle"); setTimeout(() => beep(1760, 0.12, "triangle"), 80);
+            burst(pp.x, 1, 0, "#ffe14d", 12, 3);
           }
           return false;
         }
-        if (pp.z > 12) { scene.remove(p.group); return false; }
+        if (pp.z > 12) { discard(p.group); return false; }
         return true;
       });
 
       // Collisions
       if (state.inv > 0) state.inv -= dt;
-      else {
-        for (const o of obstacles) {
-          if (!hits(o, hw, hd, top)) continue;
-          if (state.shield) {
-            state.shield = false;
-            state.inv = 1.2;
-            elShield.hidden = true;
-            scene.remove(o.group);
-            obstacles.splice(obstacles.indexOf(o), 1);
-            burst(o.group.position.x, 1, o.group.position.z, "#6fd3ff", 16, 5);
-            beep(300, 0.15, "square", 0.05);
-            state.shake = 0.2;
-            toast("BOUCLIER CASSE !");
-          } else gameOver();
+      for (const o of obstacles) {
+        if (!hits(o, hw, hd, top)) continue;
+        if (state.turbo > 0) {
+          burst(o.group.position.x, 0.8, o.group.position.z, "#ff9f1c", 12, 5);
+          obstacles.splice(obstacles.indexOf(o), 1);
+          discard(o.group);
+          state.score += 20;
+          beep(220, 0.08, "square", 0.04);
           break;
         }
+        if (state.inv > 0) break;
+        if (state.shield) {
+          state.shield = false;
+          state.inv = 1.2;
+          burst(o.group.position.x, 1, o.group.position.z, "#6fd3ff", 16, 5);
+          obstacles.splice(obstacles.indexOf(o), 1);
+          discard(o.group);
+          beep(300, 0.15, "square", 0.05);
+          state.shake = 0.2;
+          toast("BOUCLIER CASSE !");
+        } else gameOver();
+        break;
       }
+      renderPowers();
     }
     updateParts(dt, dz);
     updateVolcano(dt);
@@ -1248,13 +1744,14 @@
     const lift = Math.max(0.4, 1 - dino.y / 4);
     dinoShadow.scale.set(m.w * 0.7 * lift, m.d * 0.6 * lift, 1);
     if (bubble.parent !== player) player.add(bubble);
-    bubble.visible = state.shield;
+    bubble.visible = state.shield || state.turbo > 0;
     if (bubble.visible) {
+      bubble.material.color.set(state.turbo > 0 ? "#ffb347" : "#6fd3ff");
       const pulse = 1 + Math.sin(state.t * 6) * 0.04;
       bubble.scale.set((m.w * 0.6 + 0.6) * pulse, (m.h * 0.55 + 0.2) * pulse, (m.d * 0.7 + 0.5) * pulse);
       bubble.position.y = m.h * 0.48;
     }
-    r.visible = !(state.inv > 0 && Math.floor(state.t * 16) % 2);
+    r.visible = !(state.inv > 0 && state.turbo <= 0 && Math.floor(state.t * 16) % 2);
     if (state.mode === "over") {
       r.rotation.z += (1.35 - r.rotation.z) * Math.min(1, dt * 8);
       r.position.y += (0.4 - r.position.y) * Math.min(1, dt * 8);
@@ -1275,9 +1772,9 @@
       r.rotation.x = state.mode === "playing" && !onGround() ? -dino.vy * 0.012 : 0;
     }
 
-    // Jour / nuit
+    // Jour / nuit, teinté par la zone
     const t = state.nightT;
-    scene.background.copy(DAY.sky).lerp(NIGHT.sky, t);
+    scene.background.copy(biomeCol.sky).lerp(NIGHT.sky, t);
     scene.fog.color.copy(scene.background);
     hemi.color.copy(DAY.hemi).lerp(NIGHT.hemi, t);
     hemi.intensity = DAY.hemiI + (NIGHT.hemiI - DAY.hemiI) * t;
@@ -1294,7 +1791,7 @@
     camera.position.x += (dino.x * 0.65 - camera.position.x) * Math.min(1, dt * 6);
     camera.position.y = camH + dino.y * 0.35 + sh;
     camera.position.z = 7.2;
-    const fov = baseFov + (state.mode === "playing" ? (state.speed - 13) * 0.35 : 0);
+    const fov = baseFov + (state.mode === "playing" ? Math.min(14, (state.speed - 13) * 0.3) + (state.turbo > 0 ? 8 : 0) : 0);
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); }
     camera.lookAt(dino.x * 0.8 + sh, 1.3 + dino.y * 0.3, -8);
   }
@@ -1303,6 +1800,7 @@
     state.mode = "over";
     state.deadAt = performance.now();
     state.shake = 0.35;
+    state.turbo = 0; state.magnet = 0; state.x2 = 0;
     dino.duckTimer = 0;
     beep(180, 0.25, "sawtooth", 0.06);
     burst(dino.x, 1, 0, current.body, 14, 4);
@@ -1312,7 +1810,10 @@
       try { localStorage.setItem("dino3d-hi", String(hi)); } catch (e) {}
       showHi();
     }
+    saveBank();
+    renderPowers();
     showMessage();
+    renderShop();
   }
 
   // ---------- Boucle ----------
@@ -1338,14 +1839,19 @@
   if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
   window.addEventListener("resize", resize);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && state.mode === "playing" && !state.paused) togglePause();
+    if (document.hidden) {
+      saveBank();
+      if (state.mode === "playing" && !state.paused) togglePause();
+    }
   });
+  elRevive.addEventListener("click", e => { e.stopPropagation(); revive(); stage.focus({ preventScroll: true }); });
 
   // ---------- Contrôles ----------
   const JUMP = ["Space", "ArrowUp", "KeyW"], DUCK = ["ArrowDown", "KeyS"];
   window.addEventListener("keydown", e => {
     if (JUMP.includes(e.code)) { e.preventDefault(); if (!e.repeat) startOrJump(); }
     else if (DUCK.includes(e.code)) { e.preventDefault(); keys.duck = true; if (!onGround()) dino.vy = Math.min(dino.vy, -8); }
+    else if (e.code === "KeyC") { e.preventDefault(); revive(); }
     else if (e.code === "KeyP" || e.code === "Escape") { e.preventDefault(); togglePause(); }
     else if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); if (!e.repeat) move(-1); }
     else if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); if (!e.repeat) move(1); }
@@ -1358,6 +1864,7 @@
   // Toucher : appui = sauter, glisser = couloir / saut / baisser
   let touchStart = null;
   stage.addEventListener("pointerdown", e => {
+    if (e.target.closest("button")) return;
     e.preventDefault();
     stage.focus({ preventScroll: true });
     touchStart = { x: e.clientX, y: e.clientY, done: false };
