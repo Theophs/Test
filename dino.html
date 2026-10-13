@@ -1,0 +1,558 @@
+<title>Course du Dino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* Layout: une seule colonne centrée, la piste du jeu au centre, commandes tactiles dessous. Thème clair unique (le jeu a sa propre nuit). */
+  :root {
+    --bg: #ffffff;
+    --ink: #535353;
+    --muted: #8b8b88;
+    --line: #e4e4e1;
+    --key: #f3f3f1;
+    --pixel: "Press Start 2P", ui-monospace, "Courier New", monospace;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    padding-inline: 16px;
+    padding-block: 32px;
+    box-sizing: border-box;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  h1 {
+    font-family: var(--pixel);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+  .stage {
+    position: relative;
+    width: 100%;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 1;
+    max-width: 100%;
+    image-rendering: pixelated;
+    cursor: pointer;
+    transition: filter 0.6s ease;
+    outline: none;
+  }
+  canvas:focus-visible { box-shadow: 0 0 0 2px var(--line); }
+  canvas.night { filter: invert(1); }
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  kbd {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--ink);
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 4px 6px;
+    margin-right: 6px;
+  }
+  .touch {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .touch button {
+    font-family: var(--pixel);
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 18px 8px;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .touch button:active { transform: translateY(1px); border-bottom-width: 2px; }
+  .touch button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (hover: none) and (pointer: coarse) {
+    .touch { display: grid; }
+    .keys { display: none; }
+  }
+</style>
+
+<main>
+  <h1>Course du Dino</h1>
+  <p class="lede">Le T-rex court, les cactus arrivent. Saute par-dessus, baisse-toi sous les ptérodactyles, et la vitesse monte sans arrêt.</p>
+
+  <div class="stage">
+    <canvas id="game" width="600" height="150" tabindex="0" aria-label="Jeu du dinosaure. Espace pour sauter, flèche bas pour se baisser."></canvas>
+  </div>
+
+  <ul class="keys">
+    <li><kbd>Espace</kbd><kbd>↑</kbd>sauter</li>
+    <li><kbd>↓</kbd>se baisser</li>
+    <li>ou clique sur le jeu</li>
+  </ul>
+
+  <div class="touch">
+    <button id="btn-jump" type="button">Sauter</button>
+    <button id="btn-duck" type="button">Se baisser</button>
+  </div>
+</main>
+
+<script>
+(() => {
+  const W = 600, H = 150, GROUND = 131, P = 2;
+  const INK = "#535353", CLOUD = "#d6d6d4", BG = "#ffffff";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---------- Sprites pixel art ----------
+  const TREX_TOP = [
+    "          ######## ",
+    "         ## #######",
+    "         ##########",
+    "         ##########",
+    "         #####     ",
+    "         ########  ",
+    "#       #####      ",
+    "#      ########    ",
+    "##   ##########    ",
+    "###  ######## #    ",
+    "############       ",
+    " ###########       ",
+    "  ##########       ",
+    "   ########        ",
+    "    ######         ",
+  ];
+  const TREX_DEAD_TOP = TREX_TOP.slice();
+  TREX_DEAD_TOP[1] = "         # # ######";
+  TREX_DEAD_TOP[2] = "         ## #######";
+  TREX_DEAD_TOP[3] = "         # # ######";
+  const LEGS_STAND = ["     ##  ##", "     #    #", "     ##   ##"];
+  const LEGS_RUN1  = ["     ###  #", "          #", "          ##"];
+  const LEGS_RUN2  = ["     ##  ###", "     #", "     ##"];
+
+  const DUCK_TOP = [
+    "                    ######## ",
+    "#       ##########  # #######",
+    "##   ########################",
+    "#########################    ",
+    " #####################       ",
+    "  ################ ##        ",
+    "   ############    #         ",
+  ];
+  const DUCK_LEGS1 = ["    ###  ##", "    #     ##"];
+  const DUCK_LEGS2 = ["    ##   ###", "    ##"];
+
+  const BIRD1 = [
+    "       #             ",
+    "       ##            ",
+    "       ###           ",
+    "    #  ####          ",
+    "   ##  #####         ",
+    "  ###  ######        ",
+    " ####  #######       ",
+    "################     ",
+    "      ############## ",
+    "       ##########    ",
+    "        #########    ",
+  ];
+  const BIRD2 = [
+    "                     ",
+    "                     ",
+    "                     ",
+    "    #                ",
+    "   ##                ",
+    "  ###                ",
+    " ####                ",
+    "################     ",
+    "      ############## ",
+    "       ##########    ",
+    "        #####        ",
+    "        ####         ",
+    "        ###          ",
+    "        ##           ",
+  ];
+  const CLOUD_ART = [
+    "          #####         ",
+    "        ##     ##       ",
+    "   #####         ##     ",
+    " ##                ##   ",
+    "#                    ## ",
+    "########################",
+  ];
+
+  function cactusArt(big) {
+    const w = big ? 15 : 11, h = big ? 25 : 17;
+    const g = Array.from({ length: h }, () => Array(w).fill(" "));
+    const fill = (x0, x1, y0, y1) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = "#";
+    };
+    if (big) {
+      fill(6, 8, 0, 0); fill(5, 9, 1, h - 1);
+      fill(1, 2, 5, 5); fill(0, 3, 6, 14); fill(0, 4, 12, 14);
+      fill(12, 13, 2, 2); fill(11, 14, 3, 11); fill(10, 14, 9, 11);
+      fill(1, 2, 6, 11); g[6][3] = " "; for (let y = 6; y < 12; y++) g[y][3] = " ";
+      for (let y = 3; y < 9; y++) g[y][11] = " ";
+    } else {
+      fill(5, 5, 0, 0); fill(4, 6, 1, h - 1);
+      fill(0, 1, 3, 9); fill(0, 3, 8, 9);
+      fill(9, 10, 2, 7); fill(7, 10, 6, 7);
+    }
+    return g.map(r => r.join(""));
+  }
+
+  function makeSprite(rows, color = INK) {
+    const w = Math.max(...rows.map(r => r.length));
+    const c = document.createElement("canvas");
+    c.width = w * P; c.height = rows.length * P;
+    const x = c.getContext("2d");
+    x.fillStyle = color;
+    rows.forEach((r, j) => {
+      for (let i = 0; i < r.length; i++) if (r[i] === "#") x.fillRect(i * P, j * P, P, P);
+    });
+    return c;
+  }
+
+  const S = {
+    stand: makeSprite([...TREX_TOP, ...LEGS_STAND]),
+    run1: makeSprite([...TREX_TOP, ...LEGS_RUN1]),
+    run2: makeSprite([...TREX_TOP, ...LEGS_RUN2]),
+    dead: makeSprite([...TREX_DEAD_TOP, ...LEGS_STAND]),
+    duck1: makeSprite([...DUCK_TOP, ...DUCK_LEGS1]),
+    duck2: makeSprite([...DUCK_TOP, ...DUCK_LEGS2]),
+    bird1: makeSprite(BIRD1),
+    bird2: makeSprite(BIRD2),
+    cloud: makeSprite(CLOUD_ART, CLOUD),
+    cactusS: makeSprite(cactusArt(false)),
+    cactusL: makeSprite(cactusArt(true)),
+  };
+
+  // Hitboxes en pixels relatifs au sprite (rectangles plus petits que le dessin, comme l'original)
+  const TREX_BOXES = [[20, 0, 18, 10], [4, 14, 24, 10], [8, 24, 14, 12]];
+  const DUCK_BOXES = [[2, 2, 54, 10], [8, 12, 20, 6]];
+
+  // ---------- Son ----------
+  let audio = null;
+  function beep(freq, dur, type = "square", vol = 0.05) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.value = vol;
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+      o.connect(g).connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + dur);
+    } catch (e) {}
+  }
+
+  // ---------- Meilleur score ----------
+  let hi = 0;
+  try { hi = parseInt(localStorage.getItem("dino-hi") || "0", 10) || 0; } catch (e) {}
+  const saveHi = () => { try { localStorage.setItem("dino-hi", String(hi)); } catch (e) {} };
+
+  // ---------- État ----------
+  let state, dino, obstacles, clouds, groundBumps;
+  const keys = { jump: false, duck: false };
+
+  function reset() {
+    state = {
+      mode: state ? "playing" : "intro",
+      speed: 6,
+      score: 0,
+      dist: 0,
+      groundX: 0,
+      nextGap: 300,
+      flash: 0,
+      nightUntil: 0,
+      nightLevel: 0,
+      deadAt: 0,
+      frame: 0,
+    };
+    dino = { y: 0, vy: 0, ducking: false, onGround: true };
+    obstacles = [];
+    clouds = [{ x: 380, y: 30 }, { x: 560, y: 52 }];
+    groundBumps = Array.from({ length: 40 }, () => ({
+      x: Math.random() * W * 2,
+      y: GROUND + 3 + Math.floor(Math.random() * 8),
+      w: 1 + Math.floor(Math.random() * 3) * 2,
+    }));
+    canvas.classList.remove("night");
+  }
+
+  function startOrJump() {
+    if (state.mode === "intro") { state.mode = "playing"; jump(); return; }
+    if (state.mode === "over") {
+      if (performance.now() - state.deadAt > 450) reset();
+      return;
+    }
+    jump();
+  }
+
+  function jump() {
+    if (dino.onGround && !dino.ducking) {
+      dino.vy = -10;
+      dino.onGround = false;
+      beep(660, 0.08);
+    }
+  }
+
+  // ---------- Obstacles ----------
+  function spawn() {
+    const canBird = state.score > 300;
+    if (canBird && Math.random() < 0.28) {
+      const heights = [GROUND - 26, GROUND - 48, GROUND - 74];
+      const y = heights[Math.floor(Math.random() * heights.length)];
+      obstacles.push({ kind: "bird", x: W + 10, y, w: 42, h: 28, boxes: [[2, 12, 38, 8], [12, 18, 16, 8]], extra: Math.random() < 0.5 ? 0.8 : -0.8 });
+      return;
+    }
+    const big = Math.random() < 0.45;
+    const sprite = big ? S.cactusL : S.cactusS;
+    const maxN = state.speed > 9 ? 3 : state.speed > 7 ? 2 : 1;
+    const n = 1 + Math.floor(Math.random() * (big ? Math.min(maxN, 2) : maxN));
+    let x = W + 10;
+    for (let i = 0; i < n; i++) {
+      obstacles.push({
+        kind: "cactus", sprite, x, y: GROUND - sprite.height + 2, w: sprite.width, h: sprite.height,
+        boxes: big ? [[10, 0, 10, 50], [0, 12, 30, 16]] : [[8, 0, 6, 34], [0, 6, 22, 12]],
+        extra: 0,
+      });
+      x += sprite.width - 2;
+    }
+  }
+
+  function dinoBoxes() {
+    const sprite = dino.ducking ? S.duck1 : S.stand;
+    const bx = 30, by = GROUND - sprite.height + 2 + dino.y;
+    return (dino.ducking ? DUCK_BOXES : TREX_BOXES).map(([x, y, w, h]) => [bx + x, by + y, w, h]);
+  }
+
+  function hit(a, b) {
+    return a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
+  }
+
+  // ---------- Boucle ----------
+  let last = performance.now();
+  function update(dt) {
+    state.frame += dt;
+    if (state.mode !== "playing") return;
+
+    // Dino
+    dino.ducking = keys.duck && dino.onGround;
+    if (!dino.onGround) {
+      let g = 0.6;
+      if (keys.duck) g += 1.4;
+      if (!keys.jump && dino.vy < -4.5) dino.vy = -4.5;
+      dino.vy += g * dt;
+      dino.y += dino.vy * dt;
+      if (dino.y >= 0) { dino.y = 0; dino.vy = 0; dino.onGround = true; }
+    }
+
+    // Vitesse et score
+    state.speed = Math.min(13, state.speed + 0.0012 * dt);
+    const move = state.speed * dt;
+    state.dist += move;
+    const before = Math.floor(state.score);
+    state.score += move * 0.025;
+    const after = Math.floor(state.score);
+    if (Math.floor(after / 100) > Math.floor(before / 100) && after > 0) {
+      state.flash = 60;
+      beep(990, 0.07); setTimeout(() => beep(1320, 0.1), 90);
+    }
+    if (state.flash > 0) state.flash -= dt;
+
+    // Nuit tous les 700 points
+    const lvl = Math.floor(after / 700);
+    if (lvl > state.nightLevel) {
+      state.nightLevel = lvl;
+      state.nightUntil = after + 250;
+      canvas.classList.add("night");
+    }
+    if (state.nightUntil && after > state.nightUntil) {
+      state.nightUntil = 0;
+      canvas.classList.remove("night");
+    }
+
+    // Sol, nuages
+    state.groundX = (state.groundX + move) % (W * 2);
+    for (const c of clouds) c.x -= move * 0.2;
+    clouds = clouds.filter(c => c.x > -60);
+    if (clouds.length < 4 && Math.random() < 0.004 * dt) clouds.push({ x: W + 20, y: 15 + Math.random() * 55 });
+
+    // Obstacles
+    for (const o of obstacles) o.x -= (state.speed + o.extra) * dt;
+    obstacles = obstacles.filter(o => o.x + o.w > -10);
+    state.nextGap -= move;
+    if (state.nextGap <= 0) {
+      spawn();
+      state.nextGap = state.speed * 36 * (1 + Math.random() * 0.6);
+    }
+
+    // Collisions
+    const dBoxes = dinoBoxes();
+    for (const o of obstacles) {
+      for (const [x, y, w, h] of o.boxes) {
+        const ob = [o.x + x, o.y + y, w, h];
+        if (dBoxes.some(d => hit(d, ob))) return gameOver();
+      }
+    }
+  }
+
+  function gameOver() {
+    state.mode = "over";
+    state.deadAt = performance.now();
+    dino.ducking = false;
+    beep(180, 0.25, "sawtooth", 0.06);
+    const s = Math.floor(state.score);
+    if (s > hi) { hi = s; saveHi(); }
+  }
+
+  const pad = n => String(n).padStart(5, "0");
+
+  function drawRestart(cx, cy) {
+    ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(cx, cy, 11, -Math.PI * 0.15, Math.PI * 1.55); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + 4, cy - 17); ctx.lineTo(cx + 15, cy - 9); ctx.lineTo(cx + 3, cy - 3); ctx.closePath(); ctx.fill();
+  }
+
+  function draw() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const c of clouds) ctx.drawImage(S.cloud, Math.round(c.x), Math.round(c.y));
+
+    // Sol
+    ctx.fillStyle = INK;
+    const introCut = state.mode === "intro" ? 80 : W;
+    ctx.fillRect(0, GROUND, introCut, 1);
+    for (const b of groundBumps) {
+      let x = b.x - state.groundX;
+      if (x < -10) x += W * 2;
+      if (x < introCut) ctx.fillRect(Math.round(x), b.y, b.w, 1);
+    }
+
+    // Obstacles
+    const flap = Math.floor(state.frame / 10) % 2;
+    for (const o of obstacles) {
+      const sp = o.kind === "bird" ? (flap ? S.bird1 : S.bird2) : o.sprite;
+      ctx.drawImage(sp, Math.round(o.x), Math.round(o.y));
+    }
+
+    // Dino
+    let sp;
+    if (state.mode === "over") sp = S.dead;
+    else if (state.mode === "intro" || !dino.onGround) sp = S.stand;
+    else if (dino.ducking) sp = Math.floor(state.frame / 6) % 2 ? S.duck1 : S.duck2;
+    else sp = Math.floor(state.frame / 6) % 2 ? S.run1 : S.run2;
+    ctx.drawImage(sp, 30, Math.round(GROUND - sp.height + 2 + dino.y));
+
+    // Score
+    ctx.font = '11px "Press Start 2P", ui-monospace, monospace';
+    ctx.textBaseline = "top";
+    ctx.textAlign = "right";
+    const s = Math.floor(state.score);
+    const showScore = state.flash > 0 ? (Math.floor(state.flash / 8) % 2 ? pad(Math.floor(s / 100) * 100) : "") : pad(s);
+    ctx.fillStyle = INK;
+    ctx.fillText(showScore, W - 12, 12);
+    if (hi > 0) {
+      ctx.fillStyle = "#757575";
+      ctx.fillText("HI " + pad(hi), W - 90, 12);
+    }
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = INK;
+    if (state.mode === "intro") {
+      ctx.font = '9px "Press Start 2P", ui-monospace, monospace';
+      ctx.fillText("ESPACE OU CLIC POUR JOUER", W / 2 + 40, 62);
+    }
+    if (state.mode === "over") {
+      ctx.font = '13px "Press Start 2P", ui-monospace, monospace';
+      ctx.fillText("G A M E   O V E R", W / 2, 42);
+      drawRestart(W / 2, 88);
+    }
+  }
+
+  function loop(now) {
+    const dt = Math.min(2, (now - last) / (1000 / 60));
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Résolution nette ----------
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.getBoundingClientRect().width || W;
+    const scale = Math.max(1, Math.ceil((cssW * dpr) / W));
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  // ---------- Contrôles ----------
+  const JUMP_KEYS = ["Space", "ArrowUp", "KeyW"];
+  const DUCK_KEYS = ["ArrowDown", "KeyS"];
+  window.addEventListener("keydown", e => {
+    if (JUMP_KEYS.includes(e.code)) {
+      e.preventDefault();
+      if (!keys.jump) { keys.jump = true; startOrJump(); }
+    } else if (DUCK_KEYS.includes(e.code)) {
+      e.preventDefault();
+      keys.duck = true;
+    }
+  });
+  window.addEventListener("keyup", e => {
+    if (JUMP_KEYS.includes(e.code)) keys.jump = false;
+    if (DUCK_KEYS.includes(e.code)) keys.duck = false;
+  });
+
+  canvas.addEventListener("pointerdown", e => { e.preventDefault(); canvas.focus(); keys.jump = true; startOrJump(); });
+  window.addEventListener("pointerup", () => { keys.jump = false; });
+
+  const hold = (el, key, onPress) => {
+    el.addEventListener("pointerdown", e => { e.preventDefault(); keys[key] = true; onPress && onPress(); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(t => el.addEventListener(t, () => { keys[key] = false; }));
+    el.addEventListener("contextmenu", e => e.preventDefault());
+  };
+  hold(document.getElementById("btn-jump"), "jump", startOrJump);
+  hold(document.getElementById("btn-duck"), "duck");
+
+  document.addEventListener("visibilitychange", () => { last = performance.now(); });
+  window.addEventListener("resize", resize);
+
+  reset();
+  resize();
+  if (document.fonts && document.fonts.load) document.fonts.load('11px "Press Start 2P"').catch(() => {});
+  requestAnimationFrame(t => { last = t; loop(t); });
+})();
+</script>
